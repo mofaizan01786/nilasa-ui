@@ -53,7 +53,7 @@ function LoginForm() {
       <div style={{ textAlign: "center", marginBottom: 24 }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
           <Image
-            src="/nilasa-logo.PNG"
+            src="/nilasa-black-logo.PNG"
             alt="Nilasa"
             width={160}
             height={52}

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { fetchPublishedProducts, fetchCategories } from "@/lib/api";
+import { fetchPublishedProducts, fetchCategories, fetchProductFilters } from "@/lib/api";
 import ShopClient from "./ShopClient";
 
 export const revalidate = 3600; // ISR cache strategy
@@ -11,15 +11,16 @@ export const metadata: Metadata = {
 };
 
 export default async function ShopPage() {
-  const [products, categories] = await Promise.all([
+  const [products, categories, filters] = await Promise.all([
     fetchPublishedProducts(),
-    fetchCategories()
+    fetchCategories(),
+    fetchProductFilters()
   ]);
 
   return (
     <main className="shop-page-wrapper">
       <Suspense fallback={<div className="empty-cart-state" style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading products...</div>}>
-        <ShopClient initialProducts={products} categories={categories} />
+        <ShopClient initialProducts={products} categories={categories} initialFilters={filters} />
       </Suspense>
     </main>
   );

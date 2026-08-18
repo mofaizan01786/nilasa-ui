@@ -5,14 +5,16 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/components/CartProvider";
+import { useWishlist } from "@/components/WishlistProvider";
 import { useAuth } from "@/components/AuthProvider";
 import { SearchBar } from "@/components/SearchBar";
 import { fetchNavigationConfig, fetchBannersConfig } from "@/lib/api";
 import { NavigationMenuItem, AnnouncementBarConfig } from "@/lib/types";
-import { Menu, X, ShoppingBag, User as UserIcon, ChevronDown, ChevronRight, ArrowRight, Search } from "lucide-react";
+import { Menu, X, ShoppingBag, Heart, User as UserIcon, ChevronDown, ChevronRight, ArrowRight, Search } from "lucide-react";
 
 export function Header() {
   const { items } = useCart();
+  const { count: wishlistCount } = useWishlist();
   const { user, isAuthenticated } = useAuth();
   const pathname = usePathname();
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
@@ -260,14 +262,14 @@ export function Header() {
               })}
             </nav>
 
-            {/* Center Brand Identity with High-Contrast Royal Plaque */}
+            {/* Center Brand Identity with High-Contrast Luxury Logo */}
             <Link href="/" className="brand-minimal" aria-label="Nilasa - Grace In Every Thread">
               <div className="brand-logo-frame">
                 <Image
-                  src="/nilasa-logo.PNG"
+                  src="/nilasa-black-logo.PNG"
                   alt="Nilasa - Grace In Every Thread"
-                  width={180}
-                  height={60}
+                  width={240}
+                  height={120}
                   priority
                   className="brand-logo-img"
                 />
@@ -301,28 +303,19 @@ export function Header() {
                 </Link>
               )}
 
+              {/* Wishlist Button with Counter Badge */}
+              <Link href="/wishlist" className="wishlist-link" aria-label={`Wishlist (${wishlistCount} items)`} title="My Wishlist">
+                <Heart size={18} strokeWidth={1.9} />
+                <span className="wishlist-link-text">Wishlist</span>
+                {wishlistCount > 0 && <span className="wishlist-count">{wishlistCount}</span>}
+              </Link>
+
               {/* Shopping Bag Button with Counter Badge */}
               <Link href="/cart" className="cart-link" aria-label={`Shopping Bag (${cartCount} items)`}>
                 <ShoppingBag size={18} strokeWidth={1.9} />
                 <span className="cart-link-text">Bag</span>
                 {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
               </Link>
-            </div>
-          </div>
-
-          {/* Dedicated Mobile Search Pill Bar (Visible on Mobile) */}
-          <div className="mobile-search-bar-row">
-            <div
-              className="mobile-search-pill"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent("open-nilasa-search"));
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label="Open search dialog"
-            >
-              <Search size={16} color="#8E6EA8" />
-              <span>Search suits, kurtis, co-ords, lehengas...</span>
             </div>
           </div>
         </header>
@@ -341,13 +334,13 @@ export function Header() {
       <aside className={`mobile-nav-drawer ${mobileMenuOpen ? "open" : ""}`} aria-label="Mobile Navigation">
         <div className="mobile-drawer-header">
           <Link href="/" onClick={() => setMobileMenuOpen(false)} className="brand-minimal">
-            <div className="brand-logo-frame" style={{ padding: "3px 8px" }}>
+            <div className="brand-logo-frame">
               <Image
-                src="/nilasa-logo.PNG"
+                src="/nilasa-black-logo.PNG"
                 alt="Nilasa"
-                width={140}
-                height={46}
-                style={{ height: "30px", width: "auto", objectFit: "contain" }}
+                width={180}
+                height={80}
+                className="brand-logo-img-drawer"
               />
             </div>
           </Link>

@@ -6,12 +6,15 @@ import Link from "next/link";
 import type { Product } from "@/lib/catalog";
 import { formatPrice, getProductImage } from "@/lib/catalog";
 import { useCart } from "@/components/CartProvider";
+import { useWishlist } from "@/components/WishlistProvider";
 import { Heart, ShoppingBag, Check } from "lucide-react";
 
 export function ProductCard({ product }: { product: Product }) {
   const image = getProductImage(product);
   const { add } = useCart();
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const { isWishlisted: checkWishlisted, toggle: toggleWishlist } = useWishlist();
+  const prodId = product.productId || (typeof product.id === "number" ? product.id : 1);
+  const isWishlisted = checkWishlisted(prodId);
   const [added, setAdded] = useState(false);
 
   // Derive badge styling from product data or fallback
@@ -46,7 +49,7 @@ export function ProductCard({ product }: { product: Product }) {
     e.stopPropagation();
 
     add({
-      productId: product.productId || (typeof product.id === "number" ? product.id : 1),
+      productId: prodId,
       name: product.name,
       slug: product.slug,
       basePrice: product.basePrice,
@@ -62,7 +65,18 @@ export function ProductCard({ product }: { product: Product }) {
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsWishlisted((prev) => !prev);
+    toggleWishlist({
+      productId: prodId,
+      name: product.name,
+      slug: product.slug,
+      basePrice: product.basePrice,
+      image,
+      categoryName: product.categoryName,
+      fabric: product.fabric,
+      badge: product.badge,
+      badgeType: product.badgeType,
+      inStock: true
+    });
   };
 
   return (

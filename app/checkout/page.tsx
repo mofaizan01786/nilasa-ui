@@ -6,27 +6,50 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/catalog";
 import { useCart } from "@/components/CartProvider";
-
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+import { createOrder } from "@/lib/api";
+import {
+  QrCode,
+  CreditCard,
+  Building2,
+  Banknote,
+  ShieldCheck,
+  CheckCircle2,
+  Sparkles,
+  ArrowRight,
+  Tag,
+  Loader2,
+  Lock,
+  ExternalLink,
+  Copy,
+  Check,
+  ShieldAlert,
+  Smartphone
+} from "lucide-react";
 
 declare global {
   interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+    Razorpay?: new (options: Record<string, unknown>) => {
+      open: () => void;
+      on: (event: string, callback: (response: any) => void) => void;
+    };
   }
 }
 
-function loadRazorpay() {
+function loadRazorpayScript(): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
+    if (typeof window === "undefined") return resolve(false);
     if (window.Razorpay) return resolve(true);
+
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
 }
 
-// Client-side fallback coupon validation (when backend is offline)
+// Client-side fallback coupon validation
 const FALLBACK_COUPONS: Record<string, { discountPercent: number; name: string }> = {
   NILASA10: { discountPercent: 10, name: "10% Welcome Discount" },
   LAVENDER15: { discountPercent: 15, name: "15% Lavender Festive Edit Off" },
@@ -37,16 +60,17 @@ export default function CheckoutPage() {
   const { items, total, clear } = useCart();
   const router = useRouter();
 
-  // Prevent SSR / localStorage hydration flash
+  // Prevent SSR hydration flash
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
   // Form states
-  const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "netbanking" | "cod" | "razorpay">("upi");
+  const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "upi" | "card" | "netbanking" | "cod">("razorpay");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [copiedUpi, setCopiedUpi] = useState(false);
 
   // Coupon states
   const [couponCode, setCouponCode] = useState("");
@@ -54,7 +78,7 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
 
-  // Address form fields
+  // Address & Customer Info form fields
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -63,7 +87,12 @@ export default function CheckoutPage() {
     city: "",
     state: "Uttar Pradesh",
     postalCode: "",
-    upiId: ""
+    upiId: "",
+    utrNumber: "",
+    cardNumber: "",
+    cardExpiry: "",
+    cardCvv: "",
+    selectedBank: "HDFC Bank"
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -71,7 +100,7 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Coupon application logic — tries real backend first, then falls back
+  // Coupon application logic
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     setCouponError("");
@@ -80,17 +109,15 @@ export default function CheckoutPage() {
 
     setCouponLoading(true);
     try {
-      // Try real backend coupon validation
       const token = typeof window !== "undefined" ? window.localStorage.getItem("nilasa-auth-token") : null;
       const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await fetch(
-        `${apiUrl}/coupons/validate/${encodeURIComponent(cleanCode)}?orderAmount=${total}`,
+        `/api/v1/coupons/validate/${encodeURIComponent(cleanCode)}?orderAmount=${total}`,
         { headers }
       );
 
       if (res.ok) {
         const data = await res.json();
-        // Backend returns { couponId, code, discountType, discountAmount, payableAmount }
         const pct = data.discountType === "percentage"
           ? Math.round((data.discountAmount / total) * 100)
           : 0;
@@ -110,10 +137,9 @@ export default function CheckoutPage() {
         return;
       }
     } catch {
-      // Backend offline — try local fallback
+      // fallback
     }
 
-    // Fallback: client-side coupon check
     if (FALLBACK_COUPONS[cleanCode]) {
       const coupon = FALLBACK_COUPONS[cleanCode];
       setAppliedCoupon({ code: cleanCode, percent: coupon.discountPercent, name: coupon.name });
@@ -130,91 +156,194 @@ export default function CheckoutPage() {
   const shippingFee = 0; // Complimentary shipping
   const finalTotal = Math.max(0, total - discountAmount + shippingFee);
 
+  // Nilasa official UPI Virtual Payment Address & dynamic UPI URI
+  const NILASA_UPI_VPA = "nilasawear@okhdfcbank";
+  const upiIntentUri = `upi://pay?pa=${NILASA_UPI_VPA}&pn=Nilasa%20Luxury%20Wear&am=${finalTotal}&cu=INR&tn=Nilasa-Order`;
+  const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiIntentUri)}&bgcolor=FAF8FD&color=354232&margin=1`;
+
+  const copyUpiId = () => {
+    navigator.clipboard.writeText(NILASA_UPI_VPA);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2500);
+  };
+
+  // ── Execute Razorpay Standard Checkout Flow ──
+  const executeRazorpayCheckout = async () => {
+    // 1. Ensure Razorpay checkout.js script is loaded
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded || !window.Razorpay) {
+      throw new Error("Unable to load Razorpay payment gateway. Please check your internet connection.");
+    }
+
+    // 2. Step 1: Call Backend Create Order (/api/create-order)
+    const createRes = await fetch("/api/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: finalTotal, // in rupees, endpoint will convert to paise
+        currency: "INR",
+        receipt: `nilasa_rcpt_${Date.now()}`,
+        notes: {
+          customer_name: formData.name,
+          customer_email: formData.email,
+          customer_phone: formData.phone,
+          shipping_city: formData.city
+        }
+      })
+    });
+
+    if (!createRes.ok) {
+      const errData = await createRes.json().catch(() => ({}));
+      throw new Error(errData.error || errData.details || "Failed to initialize Razorpay checkout.");
+    }
+
+    const orderData = await createRes.json();
+    const razorpayKey = orderData.key || orderData.gatewayKey || orderData.keyId || "rzp_test_TRBj98KKSxTXp0";
+
+    // 3. Step 2: Open Razorpay Standard Checkout Modal
+    return new Promise<void>((resolve, reject) => {
+      const options = {
+        key: razorpayKey,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        name: "Nilasa",
+        description: "Nilasa Artisanal Luxury Wear",
+        image: "/nilasa-brand-logo.png",
+        order_id: orderData.order_id || orderData.id,
+        prefill: {
+          name: formData.name,
+          email: formData.email,
+          contact: formData.phone
+        },
+        notes: {
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          postalCode: formData.postalCode
+        },
+        theme: {
+          color: "#354232" // Nilasa Signature Deep Olive
+        },
+        // Step 3: Handle Payment Success -> Verify Signature
+        handler: async (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) => {
+          try {
+            const verifyRes = await fetch("/api/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (!verifyRes.ok || !verifyData.success) {
+              throw new Error(verifyData.error || "Payment signature verification failed. Please contact support.");
+            }
+
+            // Payment is authentically verified! Save order to store and admin panel
+            const orderResult = await createOrder({
+              shippingAddress: {
+                name: formData.name,
+                phone: formData.phone,
+                email: formData.email,
+                address: formData.address,
+                city: formData.city,
+                state: formData.state,
+                postalCode: formData.postalCode
+              },
+              paymentMethod: "razorpay",
+              paymentStatus: "Success",
+              transactionId: response.razorpay_payment_id,
+              items,
+              totalAmount: finalTotal,
+              discountApplied: discountAmount,
+              couponCode: appliedCoupon?.code
+            });
+
+            clear();
+            resolve();
+            router.push(
+              `/order-confirmation?order=${orderResult.orderId}&amount=${finalTotal}&name=${encodeURIComponent(formData.name)}&method=razorpay`
+            );
+          } catch (verifyErr) {
+            reject(verifyErr);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setSubmitting(false);
+            setError("Razorpay payment modal closed. You can retry checkout anytime.");
+            resolve();
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay!(options);
+
+      rzp.on("payment.failed", (failResponse: any) => {
+        setSubmitting(false);
+        const reason = failResponse.error?.description || failResponse.error?.reason || "Transaction was declined.";
+        setError(`Payment failed: ${reason}`);
+      });
+
+      rzp.open();
+    });
+  };
+
+  // Main Checkout Submission Handler
   async function handleCheckout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!items.length) return;
+
+    // Validate essential fields
+    if (!formData.name.trim() || !formData.phone.trim() || !formData.address.trim()) {
+      setError("Please fill in your name, phone number, and delivery address.");
+      return;
+    }
 
     setSubmitting(true);
     setError("");
 
     try {
-      const token = typeof window !== "undefined" ? window.localStorage.getItem("nilasa-auth-token") : null;
-      const headers: HeadersInit = {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      };
-
-      // Backend CreateOrderCommand: { UserId (set by backend), AddressId, Items[{ProductVariantId, Quantity}] }
-      const orderPayload = {
-        addressId: 0, // TODO: create address first or use default
-        items: items.map((item) => ({
-          productVariantId: item.productId,
-          quantity: item.quantity
-        }))
-      };
-
-      let orderId: number | string = 0;
-
+      // 1. Razorpay Gateway Handling (Standard Web Checkout)
       if (paymentMethod === "razorpay") {
-        try {
-          // Create order first
-          const orderResponse = await fetch(`${apiUrl}/orders`, {
-            method: "POST", headers,
-            body: JSON.stringify(orderPayload)
-          });
-          if (orderResponse.ok) {
-            const orderData = await orderResponse.json();
-            orderId = typeof orderData === "number" ? orderData : orderData.orderId ?? orderData;
-          }
-
-          // Initiate payment
-          const paymentResponse = await fetch(`${apiUrl}/payments/initiate`, {
-            method: "POST", headers,
-            body: JSON.stringify({ orderId, amount: finalTotal })
-          });
-          if (paymentResponse.ok) {
-            const payment = await paymentResponse.json();
-            if ((await loadRazorpay()) && window.Razorpay) {
-              new window.Razorpay({
-                key: payment.gatewayKey ?? payment.key,
-                order_id: payment.gatewayOrderId ?? payment.orderId,
-                amount: finalTotal * 100,
-                currency: payment.currency ?? "INR",
-                name: "Nilasa",
-                description: "Nilasa Luxury Order Payment",
-                handler: () => {
-                  clear();
-                  router.push(`/order-confirmation?order=${orderId}&amount=${finalTotal}`);
-                },
-                theme: { color: "#0A291E" }
-              }).open();
-              return;
-            }
-          }
-        } catch {
-          // Fall back to direct complete if payment gateway unavailable
-        }
+        await executeRazorpayCheckout();
+        return;
       }
 
-      // Try to create order via API
-      try {
-        const orderResponse = await fetch(`${apiUrl}/orders`, {
-          method: "POST", headers,
-          body: JSON.stringify(orderPayload)
-        });
-        if (orderResponse.ok) {
-          const orderData = await orderResponse.json();
-          orderId = typeof orderData === "number" ? orderData : orderData.orderId ?? orderData;
-        }
-      } catch {
-        // Backend offline — generate mock order ID
-        orderId = `NIL-${Math.floor(100000 + Math.random() * 900000)}`;
-      }
+      // 2. Direct UPI / Card / COD / Netbanking Order Placement
+      const result = await createOrder({
+        shippingAddress: {
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          postalCode: formData.postalCode
+        },
+        paymentMethod,
+        paymentStatus: paymentMethod === "cod" ? "Pending" : "Success",
+        transactionId: formData.utrNumber || `NIL-TXN-${Date.now()}`,
+        items,
+        totalAmount: finalTotal,
+        discountApplied: discountAmount,
+        couponCode: appliedCoupon?.code
+      });
 
-      // Simulate swift luxury order processing
-      await new Promise((res) => setTimeout(res, 1000));
+      // Brief luxury order processing buffer
+      await new Promise((res) => setTimeout(res, 600));
       clear();
-      router.push(`/order-confirmation?order=${orderId}&amount=${finalTotal}&name=${encodeURIComponent(formData.name)}`);
+      router.push(
+        `/order-confirmation?order=${result.orderId}&amount=${finalTotal}&name=${encodeURIComponent(formData.name)}&method=${paymentMethod}`
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Order processing failed. Please try again.");
     } finally {
@@ -256,14 +385,14 @@ export default function CheckoutPage() {
   }
 
   return (
-    <main className="shell checkout-page">
-      <header className="page-title">
-        <div className="breadcrumb">
+    <main className="shell checkout-page" style={{ paddingBottom: "clamp(30px, 5vw, 60px)", paddingTop: "clamp(12px, 2vw, 24px)" }}>
+      <header className="page-title" style={{ marginBottom: "clamp(16px, 3vw, 28px)", textAlign: "left" }}>
+        <div className="breadcrumb" style={{ marginBottom: 6 }}>
           <Link href="/">Home</Link> / <Link href="/cart">Bag</Link> / <span>Checkout</span>
         </div>
-        <span className="eyebrow eyebrow--gold">SECURE CHECKOUT</span>
-        <h1>Complete Your Order</h1>
-        <p>Grace and luxury delivered to your doorstep with complimentary Pan-India shipping.</p>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "var(--fs-h1)", margin: "4px 0 0" }}>
+          Checkout
+        </h1>
       </header>
 
       <div className="checkout-layout">
@@ -275,7 +404,6 @@ export default function CheckoutPage() {
               <span className="step-number">1</span>
               <div>
                 <h2>Shipping & Contact Details</h2>
-                <p>Enter the address where you would like your Nilasa order delivered.</p>
               </div>
             </div>
 
@@ -286,7 +414,7 @@ export default function CheckoutPage() {
                   name="name"
                   type="text"
                   required
-                  placeholder="e.g. Swaleha Ansari"
+                  placeholder="Enter full name"
                   value={formData.name}
                   onChange={handleInputChange}
                   autoComplete="name"
@@ -294,12 +422,12 @@ export default function CheckoutPage() {
               </label>
 
               <label className="field">
-                <span>Phone Number *</span>
+                <span>Phone Number (for Courier & Tracking Updates) *</span>
                 <input
                   name="phone"
                   type="tel"
                   required
-                  placeholder="+91 98765 43210"
+                  placeholder="10-digit mobile number"
                   value={formData.phone}
                   onChange={handleInputChange}
                   autoComplete="tel"
@@ -307,12 +435,12 @@ export default function CheckoutPage() {
               </label>
 
               <label className="field wide">
-                <span>Email Address *</span>
+                <span>Email Address (for Invoice & Order Receipt) *</span>
                 <input
                   name="email"
                   type="email"
                   required
-                  placeholder="your.email@domain.com"
+                  placeholder="name@email.com"
                   value={formData.email}
                   onChange={handleInputChange}
                   autoComplete="email"
@@ -320,12 +448,12 @@ export default function CheckoutPage() {
               </label>
 
               <label className="field wide">
-                <span>Delivery Address *</span>
+                <span>Delivery Address (House / Flat / Street / Area) *</span>
                 <input
                   name="address"
                   type="text"
                   required
-                  placeholder="House/Flat No., Street, Landmark"
+                  placeholder="Flat / House no., building, street address, landmark"
                   value={formData.address}
                   onChange={handleInputChange}
                   autoComplete="street-address"
@@ -338,7 +466,7 @@ export default function CheckoutPage() {
                   name="city"
                   type="text"
                   required
-                  placeholder="Kanpur"
+                  placeholder="City / Town"
                   value={formData.city}
                   onChange={handleInputChange}
                   autoComplete="address-level2"
@@ -358,6 +486,9 @@ export default function CheckoutPage() {
                   <option value="Rajasthan">Rajasthan</option>
                   <option value="Gujarat">Gujarat</option>
                   <option value="Punjab">Punjab</option>
+                  <option value="Haryana">Haryana</option>
+                  <option value="Madhya Pradesh">Madhya Pradesh</option>
+                  <option value="Bihar">Bihar</option>
                 </select>
               </label>
 
@@ -367,7 +498,7 @@ export default function CheckoutPage() {
                   name="postalCode"
                   type="text"
                   required
-                  placeholder="208001"
+                  placeholder="6-digit PIN code"
                   value={formData.postalCode}
                   onChange={handleInputChange}
                   autoComplete="postal-code"
@@ -377,137 +508,354 @@ export default function CheckoutPage() {
           </section>
 
           {/* Section 2: Payment Options */}
-          <section className="checkout-section" style={{ marginTop: 40 }}>
+          <section className="checkout-section" style={{ marginTop: "clamp(20px, 3vw, 32px)" }}>
             <div className="checkout-section-header">
               <span className="step-number">2</span>
               <div>
-                <h2>Select Payment Method</h2>
-                <p>All transactions are 256-bit SSL encrypted and 100% secure.</p>
+                <h2>Payment Method</h2>
               </div>
             </div>
 
             <div className="payment-options-grid">
-              {/* Option 1: Instant UPI */}
-              <label className={`payment-option-card ${paymentMethod === "upi" ? "payment-option-card--active" : ""}`}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="upi"
-                  checked={paymentMethod === "upi"}
-                  onChange={() => setPaymentMethod("upi")}
-                />
+              {/* Option 1: Razorpay Standard Checkout */}
+              <label className={`payment-option-card ${paymentMethod === "razorpay" ? "payment-option-card--active" : ""}`}>
+                <div className="payment-radio-wrap">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="razorpay"
+                    checked={paymentMethod === "razorpay"}
+                    onChange={() => setPaymentMethod("razorpay")}
+                  />
+                </div>
                 <div className="payment-option-content">
                   <div className="payment-title-row">
-                    <span className="payment-name">⚡ Instant UPI / QR</span>
-                    <span className="payment-badge lavender">GPay • PhonePe • Paytm</span>
+                    <div className="payment-name-wrap">
+                      <ShieldCheck size={18} className="payment-icon-emerald" />
+                      <span className="payment-name">Razorpay Checkout</span>
+                      <span className="payment-pill-recommend">Recommended</span>
+                    </div>
+                    <span className="payment-badge emerald">UPI • Cards • NetBanking</span>
                   </div>
-                  <p className="payment-desc">Pay instantly using Google Pay, PhonePe, Paytm or BHIM UPI.</p>
+                  <p className="payment-desc">Official secure gateway with 100% buyer protection and instant verification.</p>
                 </div>
               </label>
 
-              {/* Option 2: Cards */}
-              <label className={`payment-option-card ${paymentMethod === "card" ? "payment-option-card--active" : ""}`}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="card"
-                  checked={paymentMethod === "card"}
-                  onChange={() => setPaymentMethod("card")}
-                />
+              {/* Option 2: Instant UPI / QR */}
+              <label className={`payment-option-card ${paymentMethod === "upi" ? "payment-option-card--active" : ""}`}>
+                <div className="payment-radio-wrap">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="upi"
+                    checked={paymentMethod === "upi"}
+                    onChange={() => setPaymentMethod("upi")}
+                  />
+                </div>
                 <div className="payment-option-content">
                   <div className="payment-title-row">
-                    <span className="payment-name">💳 Credit / Debit Card</span>
+                    <div className="payment-name-wrap">
+                      <QrCode size={18} className="payment-icon-olive" />
+                      <span className="payment-name">Direct UPI / QR Code</span>
+                    </div>
+                    <span className="payment-badge lavender">GPay • PhonePe • Paytm</span>
+                  </div>
+                  <p className="payment-desc">Scan dynamic QR code or open your favorite UPI app directly.</p>
+                </div>
+              </label>
+
+              {/* Option 3: Cards */}
+              <label className={`payment-option-card ${paymentMethod === "card" ? "payment-option-card--active" : ""}`}>
+                <div className="payment-radio-wrap">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    checked={paymentMethod === "card"}
+                    onChange={() => setPaymentMethod("card")}
+                  />
+                </div>
+                <div className="payment-option-content">
+                  <div className="payment-title-row">
+                    <div className="payment-name-wrap">
+                      <CreditCard size={18} className="payment-icon-olive" />
+                      <span className="payment-name">Credit / Debit Card</span>
+                    </div>
                     <span className="payment-badge gold">Visa • Mastercard • RuPay</span>
                   </div>
                   <p className="payment-desc">All major Indian and international debit & credit cards accepted.</p>
                 </div>
               </label>
 
-              {/* Option 3: Netbanking */}
+              {/* Option 4: Netbanking */}
               <label className={`payment-option-card ${paymentMethod === "netbanking" ? "payment-option-card--active" : ""}`}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="netbanking"
-                  checked={paymentMethod === "netbanking"}
-                  onChange={() => setPaymentMethod("netbanking")}
-                />
+                <div className="payment-radio-wrap">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="netbanking"
+                    checked={paymentMethod === "netbanking"}
+                    onChange={() => setPaymentMethod("netbanking")}
+                  />
+                </div>
                 <div className="payment-option-content">
                   <div className="payment-title-row">
-                    <span className="payment-name">🏦 Net Banking</span>
-                    <span className="payment-badge">All Major Banks</span>
+                    <div className="payment-name-wrap">
+                      <Building2 size={18} className="payment-icon-olive" />
+                      <span className="payment-name">Net Banking</span>
+                    </div>
+                    <span className="payment-badge">50+ Banks</span>
                   </div>
-                  <p className="payment-desc">HDFC, SBI, ICICI, Axis, Kotak and 50+ Indian banks.</p>
+                  <p className="payment-desc">HDFC, SBI, ICICI, Axis, Kotak, PNB and all major Indian banks.</p>
                 </div>
               </label>
 
-              {/* Option 4: Cash on Delivery */}
+              {/* Option 5: Cash on Delivery */}
               <label className={`payment-option-card ${paymentMethod === "cod" ? "payment-option-card--active" : ""}`}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="cod"
-                  checked={paymentMethod === "cod"}
-                  onChange={() => setPaymentMethod("cod")}
-                />
+                <div className="payment-radio-wrap">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cod"
+                    checked={paymentMethod === "cod"}
+                    onChange={() => setPaymentMethod("cod")}
+                  />
+                </div>
                 <div className="payment-option-content">
                   <div className="payment-title-row">
-                    <span className="payment-name">💵 Cash On Delivery (COD)</span>
-                    <span className="payment-badge emerald">Complimentary COD</span>
+                    <div className="payment-name-wrap">
+                      <Banknote size={18} className="payment-icon-olive" />
+                      <span className="payment-name">Cash On Delivery (COD)</span>
+                    </div>
+                    <span className="payment-badge emerald">Complimentary</span>
                   </div>
-                  <p className="payment-desc">Pay cash when your Nilasa package is delivered to your doorstep.</p>
+                  <p className="payment-desc">Pay in cash or UPI when your Nilasa package is delivered to your door.</p>
                 </div>
               </label>
             </div>
 
-            {/* Sub-inputs based on payment method */}
-            {paymentMethod === "upi" && (
-              <div className="payment-subpanel">
-                <label className="field">
-                  <span>Enter UPI ID / VPA (Optional)</span>
-                  <input
-                    type="text"
-                    name="upiId"
-                    placeholder="mobile@upi or username@okicici"
-                    value={formData.upiId}
-                    onChange={handleInputChange}
-                  />
-                </label>
-                <p className="payment-subpanel-note">✨ A payment prompt or QR code will be generated upon clicking order confirmation.</p>
+            {/* ── Razorpay Highlight Badge ── */}
+            {paymentMethod === "razorpay" && (
+              <div className="payment-active-info-panel">
+                <ShieldCheck size={20} className="payment-info-shield" />
+                <div className="payment-info-copy">
+                  <h4>Razorpay Standard Checkout Selected</h4>
+                  <p>
+                    Clicking &quot;Pay with Razorpay&quot; below will open the official secure popup supporting Google Pay, PhonePe, Paytm, All Cards, EMI, and Net Banking.
+                  </p>
+                </div>
               </div>
             )}
 
+            {/* ── Dynamic UPI / QR Interactive Payment Card ── */}
+            {paymentMethod === "upi" && (
+              <div
+                className="upi-interactive-panel"
+                style={{
+                  marginTop: 18,
+                  padding: "20px 24px",
+                  borderRadius: 14,
+                  background: "linear-gradient(135deg, #FAF8FD 0%, #F5EEFA 100%)",
+                  border: "1.5px solid #E4D9F0",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 16
+                }}
+              >
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700, color: "#1A1D20" }}>
+                      Scan QR with any UPI App to Pay {formatPrice(finalTotal)}
+                    </h4>
+                    <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "#64748B" }}>
+                      Scan using Google Pay, PhonePe, Paytm, or BHIM UPI
+                    </p>
+                  </div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FFFFFF", padding: "6px 12px", borderRadius: 8, border: "1px solid #E4D9F0" }}>
+                    <span style={{ fontSize: "0.78rem", color: "#64748B", fontWeight: 600 }}>UPI ID:</span>
+                    <strong style={{ fontSize: "0.84rem", color: "#354232", fontFamily: "var(--font-mono)" }}>
+                      {NILASA_UPI_VPA}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={copyUpiId}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: copiedUpi ? "#10B981" : "#8E6EA8",
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "2px 4px"
+                      }}
+                      title="Copy UPI ID"
+                    >
+                      {copiedUpi ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center" }}>
+                  {/* QR Code Container */}
+                  <div
+                    style={{
+                      background: "#FFFFFF",
+                      padding: 10,
+                      borderRadius: 12,
+                      border: "1px solid #E4D9F0",
+                      display: "inline-flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      boxShadow: "0 4px 14px rgba(142, 110, 168, 0.12)"
+                    }}
+                  >
+                    <Image
+                      src={qrCodeImageUrl}
+                      alt="Nilasa UPI Payment QR Code"
+                      width={170}
+                      height={170}
+                      style={{ borderRadius: 8 }}
+                      unoptimized
+                    />
+                    <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#8E6EA8", marginTop: 6, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                      Nilasa Verified Merchant
+                    </span>
+                  </div>
+
+                  {/* UPI App Quick Intent Launchers */}
+                  <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 10 }}>
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Direct App Links (Mobile)
+                    </span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      <a
+                        href={upiIntentUri}
+                        className="button button--lavender-glass"
+                        style={{ fontSize: "0.8rem", padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                      >
+                        <Smartphone size={14} /> Open Google Pay
+                      </a>
+                      <a
+                        href={upiIntentUri}
+                        className="button button--lavender-glass"
+                        style={{ fontSize: "0.8rem", padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                      >
+                        <Smartphone size={14} /> Open PhonePe
+                      </a>
+                      <a
+                        href={upiIntentUri}
+                        className="button button--lavender-glass"
+                        style={{ fontSize: "0.8rem", padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                      >
+                        <Smartphone size={14} /> Open Paytm
+                      </a>
+                    </div>
+
+                    <label className="field" style={{ marginTop: 6 }}>
+                      <span style={{ fontSize: "0.76rem" }}>UTR / UPI Reference No. (Optional for fast verification)</span>
+                      <input
+                        type="text"
+                        name="utrNumber"
+                        placeholder="12-digit UTR number"
+                        value={formData.utrNumber}
+                        onChange={handleInputChange}
+                        style={{ padding: "8px 12px", fontSize: "0.85rem", background: "#FFFFFF" }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Card Subpanel */}
             {paymentMethod === "card" && (
-              <div className="payment-subpanel form-grid">
+              <div className="payment-subpanel form-grid" style={{ marginTop: 16 }}>
                 <label className="field wide">
-                  <span>Card Number</span>
-                  <input type="text" placeholder="4111 2222 3333 4444" maxLength={19} />
+                  <span>Card Number *</span>
+                  <input
+                    type="text"
+                    name="cardNumber"
+                    placeholder="0000 0000 0000 0000"
+                    maxLength={19}
+                    value={formData.cardNumber}
+                    onChange={handleInputChange}
+                  />
                 </label>
                 <label className="field">
-                  <span>Expiry Date</span>
-                  <input type="text" placeholder="MM / YY" maxLength={5} />
+                  <span>Expiry Date *</span>
+                  <input
+                    type="text"
+                    name="cardExpiry"
+                    placeholder="MM / YY"
+                    maxLength={5}
+                    value={formData.cardExpiry}
+                    onChange={handleInputChange}
+                  />
                 </label>
                 <label className="field">
-                  <span>CVV / CVC</span>
-                  <input type="password" placeholder="123" maxLength={4} />
+                  <span>CVV / CVC *</span>
+                  <input
+                    type="password"
+                    name="cardCvv"
+                    placeholder="CVV"
+                    maxLength={4}
+                    value={formData.cardCvv}
+                    onChange={handleInputChange}
+                  />
+                </label>
+              </div>
+            )}
+
+            {/* Net Banking Subpanel */}
+            {paymentMethod === "netbanking" && (
+              <div className="payment-subpanel" style={{ marginTop: 16 }}>
+                <label className="field">
+                  <span>Select Your Bank *</span>
+                  <select
+                    name="selectedBank"
+                    value={formData.selectedBank}
+                    onChange={handleInputChange}
+                    className="field-select"
+                  >
+                    <option value="HDFC Bank">HDFC Bank</option>
+                    <option value="State Bank of India">State Bank of India (SBI)</option>
+                    <option value="ICICI Bank">ICICI Bank</option>
+                    <option value="Axis Bank">Axis Bank</option>
+                    <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
+                    <option value="Punjab National Bank">Punjab National Bank (PNB)</option>
+                    <option value="Bank of Baroda">Bank of Baroda</option>
+                  </select>
                 </label>
               </div>
             )}
           </section>
 
-          {error && <p className="notice notice--error" role="alert">{error}</p>}
+          {error && (
+            <p className="notice notice--error" role="alert" style={{ marginTop: 20 }}>
+              {error}
+            </p>
+          )}
 
           <button
             type="submit"
             className="button button--gold button--large"
             disabled={submitting}
-            style={{ marginTop: 32, width: "100%" }}
+            style={{ marginTop: 32, width: "100%", padding: "16px 24px", fontSize: "1.05rem" }}
           >
-            {submitting ? "Processing Order..." : `Place Order • ${formatPrice(finalTotal)}`}
+            {submitting ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <Loader2 size={18} className="animate-spin" /> Processing Payment...
+              </span>
+            ) : paymentMethod === "razorpay" ? (
+              `Pay with Razorpay • ${formatPrice(finalTotal)}`
+            ) : (
+              `Confirm Order • ${formatPrice(finalTotal)}`
+            )}
           </button>
 
-          <p className="checkout-guarantee">
-            🔒 By placing your order, you agree to Nilasa&apos;s Terms of Sale and Return Policy. Free 7-day returns & exchanges.
+          <p className="checkout-guarantee" style={{ marginTop: 14, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: "0.78rem", color: "#64748B" }}>
+            <Lock size={13} color="#64748B" />
+            <span>By placing your order, you agree to Nilasa&apos;s Terms of Sale. Complimentary Pan-India Express Delivery & 7-day hassle-free returns.</span>
           </p>
         </form>
 
@@ -518,89 +866,101 @@ export default function CheckoutPage() {
 
             <div className="summary-items-list">
               {items.map((item) => (
-                <div className="summary-item-row" key={`${item.productId}-${item.size}`}>
+                <div key={`${item.productId}-${item.size}`} className="summary-item-row">
                   <div className="summary-item-img">
-                    <Image src={item.image} alt={item.name} width={54} height={70} style={{ objectFit: "cover" }} />
+                    <Image
+                      src={item.image || "/images/hero-festive.jpg"}
+                      alt={item.name}
+                      width={52}
+                      height={68}
+                      style={{ objectFit: "cover", borderRadius: 6 }}
+                    />
                     <span className="summary-item-qty">{item.quantity}</span>
                   </div>
-                  <div className="summary-item-info">
+                  <div className="summary-item-details">
                     <h4 className="summary-item-name">{item.name}</h4>
-                    <span className="summary-item-size">Size: {item.size}</span>
-                  </div>
-                  <div className="summary-item-price">
-                    {formatPrice(item.basePrice * item.quantity)}
+                    <span className="summary-item-meta">Size: {item.size}</span>
+                    <span className="summary-item-price">{formatPrice(item.basePrice * item.quantity)}</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Promo Code Input */}
-            <div className="promo-code-section">
-              <span className="promo-label">Have a Promo Code?</span>
-              {appliedCoupon ? (
-                <div className="applied-coupon-pill">
-                  <span>🎉 <strong>{appliedCoupon.code}</strong> ({appliedCoupon.name})</span>
+            {/* Promo Code Form */}
+            <form onSubmit={handleApplyCoupon} className="checkout-coupon-form" style={{ marginTop: 20 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Enter promo code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: "9px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #E5E7EB",
+                    fontSize: "0.85rem",
+                    textTransform: "uppercase",
+                    fontFamily: "var(--font-mono)"
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={couponLoading || !couponCode.trim()}
+                  className="button button--lavender-glass"
+                  style={{ padding: "8px 16px", fontSize: "0.82rem", fontWeight: 700 }}
+                >
+                  {couponLoading ? "..." : "Apply"}
+                </button>
+              </div>
+              {appliedCoupon && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, background: "#F0FDF4", padding: "6px 10px", borderRadius: 6, border: "1px solid #BBF7D0" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#166534", fontWeight: 600 }}>
+                    ✨ Coupon Applied: {appliedCoupon.code} (-{formatPrice(discountAmount)})
+                  </span>
                   <button
                     type="button"
                     onClick={() => setAppliedCoupon(null)}
-                    className="remove-coupon-btn"
+                    style={{ background: "none", border: "none", color: "#DC2626", fontSize: "0.72rem", cursor: "pointer", fontWeight: 700 }}
                   >
                     Remove
                   </button>
                 </div>
-              ) : (
-                <form onSubmit={handleApplyCoupon} className="coupon-form">
-                  <input
-                    type="text"
-                    placeholder="Try NILASA10 or LAVENDER15"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    className="coupon-input"
-                    disabled={couponLoading}
-                  />
-                  <button type="submit" className="coupon-apply-btn" disabled={couponLoading}>
-                    {couponLoading ? "..." : "Apply"}
-                  </button>
-                </form>
               )}
-              {couponError && <span className="coupon-error">{couponError}</span>}
-            </div>
+              {couponError && (
+                <p style={{ color: "#DC2626", fontSize: "0.75rem", margin: "6px 0 0" }}>{couponError}</p>
+              )}
+            </form>
 
-            {/* Totals Breakdown */}
-            <div className="totals-breakdown">
-              <div className="summary-row">
+            {/* Price Calculations */}
+            <div className="summary-breakdown" style={{ marginTop: 20, borderTop: "1px solid #ECE7F2", paddingTop: 14 }}>
+              <div className="breakdown-row">
                 <span>Subtotal</span>
-                <span>{formatPrice(total)}</span>
+                <span className="price">{formatPrice(total)}</span>
               </div>
-
-              {appliedCoupon && (
-                <div className="summary-row discount">
-                  <span>Promo Discount ({appliedCoupon.code})</span>
-                  <span>− {formatPrice(discountAmount)}</span>
+              {discountAmount > 0 && (
+                <div className="breakdown-row discount">
+                  <span>Discount ({appliedCoupon?.code})</span>
+                  <span className="price">- {formatPrice(discountAmount)}</span>
                 </div>
               )}
-
-              <div className="summary-row">
+              <div className="breakdown-row">
                 <span>Pan-India Shipping</span>
-                <span className="free-shipping-text">COMPLIMENTARY</span>
+                <span style={{ color: "#15803D", fontWeight: 600 }}>FREE</span>
               </div>
-
-              <div className="summary-row grand-total">
-                <strong>Total Payable</strong>
-                <strong className="grand-total-price">{formatPrice(finalTotal)}</strong>
+              <div className="breakdown-row total" style={{ borderTop: "1px solid #ECE7F2", paddingTop: 12, marginTop: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: "1.05rem" }}>Payable Total</span>
+                <span className="price" style={{ fontSize: "1.2rem", fontWeight: 800, color: "#354232" }}>
+                  {formatPrice(finalTotal)}
+                </span>
               </div>
             </div>
 
-            {/* Guarantee badges */}
-            <div className="sidebar-trust-box">
-              <div className="trust-mini-item">
-                <span className="trust-icon">✨</span>
-                <span>Handcrafted Authentic Ethnic Wear</span>
-              </div>
-              <div className="trust-mini-item">
-                <span className="trust-icon">📦</span>
-                <span>Dispatched within 24-48 Hours</span>
-              </div>
+            <div style={{ marginTop: 18, background: "#FAF8F5", padding: "10px 12px", borderRadius: 8, display: "flex", alignItems: "center", gap: 8 }}>
+              <ShieldCheck size={18} color="#354232" />
+              <span style={{ fontSize: "0.75rem", color: "#64748B" }}>
+                100% Authentic Handcrafted Fabrics • Inspected Before Dispatch
+              </span>
             </div>
           </div>
         </aside>

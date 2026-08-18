@@ -2,16 +2,30 @@ import {
   Product, Category, Coupon, Order, User, AuthResponse,
   CouponValidationResult, ProductStatus, OrderStatus, ProductVariant, ProductImage,
   CreateUserPayload, UpdateUserRolePayload, AdminResetPasswordPayload, ChangePasswordPayload,
-  NavigationConfig, NavigationMenuItem, BannersConfig, RegisterCustomerPayload
+  NavigationConfig, NavigationMenuItem, BannersConfig, RegisterCustomerPayload,
+  FilterOptions, ProductFilterParams, ShippingAddress, CartItem
 } from "./types";
 import { resolveProductImageUrl } from "./catalog";
 
+if (typeof process !== "undefined" && process.env) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
+
 // ─── Base URLs (Dynamically sourced from environment variables) ───
-export const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "/api/v1";
+export const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "https://nilasabackend.geecera.com/api/v1";
 export const SERVER_API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || PUBLIC_API_URL;
 
 export function getApiBaseUrl(): string {
-  return typeof window === "undefined" ? SERVER_API_URL : PUBLIC_API_URL;
+  if (typeof window !== "undefined") {
+    // If the website is running on a production domain, never make private localhost requests
+    if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      if (PUBLIC_API_URL.includes("localhost") || PUBLIC_API_URL.includes("127.0.0.1")) {
+        return "https://nilasabackend.geecera.com/api/v1";
+      }
+    }
+    return PUBLIC_API_URL;
+  }
+  return SERVER_API_URL;
 }
 
 function getAuthToken(): string | null {
@@ -123,7 +137,53 @@ function normaliseUser(u: User): User {
 
 // ─── STOREFRONT API (Public, Live Data Only) ────────────
 
-export async function fetchPublishedProducts(): Promise<Product[]> {
+export async function fetchProductFilters(): Promise<FilterOptions | null> {
+  const isClient = typeof window !== "undefined";
+  const res = await safeFetch(
+    `${getApiBaseUrl()}/products/filters`,
+    isClient ? { cache: "no-store" } : { next: { revalidate: 60 } }
+  );
+  if (res && res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      // json parse error
+    }
+  }
+  return null;
+}
+
+export async function fetchProductsWithFilters(params: ProductFilterParams = {}): Promise<Product[]> {
+  const isClient = typeof window !== "undefined";
+  const searchParams = new URLSearchParams();
+  if (params.categoryId) searchParams.set("categoryId", params.categoryId.toString());
+  if (params.search && params.search.trim()) searchParams.set("search", params.search.trim());
+  if (params.page) searchParams.set("page", params.page.toString());
+  if (params.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+  if (params.size && params.size !== "all") searchParams.set("size", params.size);
+  if (params.color && params.color !== "all") searchParams.set("color", params.color);
+  if (params.minPrice !== undefined && params.minPrice !== null) searchParams.set("minPrice", params.minPrice.toString());
+  if (params.maxPrice !== undefined && params.maxPrice !== null) searchParams.set("maxPrice", params.maxPrice.toString());
+  if (params.sortBy && params.sortBy !== "featured") searchParams.set("sortBy", params.sortBy);
+
+  const queryString = searchParams.toString();
+  const url = `${getApiBaseUrl()}/products${queryString ? `?${queryString}` : ""}`;
+  const res = await safeFetch(url, isClient ? { cache: "no-store" } : { next: { revalidate: 0 } });
+  if (res && res.ok) {
+    try {
+      const data = await res.json();
+      if (Array.isArray(data)) return data.map(normaliseProduct);
+    } catch {
+      // json parse error
+    }
+  }
+  return [];
+}
+
+export async function fetchPublishedProducts(params?: ProductFilterParams): Promise<Product[]> {
+  if (params) {
+    return fetchProductsWithFilters(params);
+  }
   const isClient = typeof window !== "undefined";
   const res = await safeFetch(`${getApiBaseUrl()}/products`, isClient ? { cache: "no-store" } : { next: { revalidate: 0 } });
   if (res && res.ok) {
@@ -469,13 +529,64 @@ export async function updateCoupon(
 
 // ─── ADMIN & STOREFRONT (Orders) ────────────────────────
 
+export async function createOrder(payload: {
+  shippingAddress: ShippingAddress;
+  paymentMethod: string;
+  paymentStatus?: string;
+  transactionId?: string;
+  items: CartItem[];
+  totalAmount: number;
+  discountApplied?: number;
+  couponCode?: string;
+  userId?: number;
+}): Promise<{ success: boolean; orderId: number; order: Order }> {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("nilasa-auth-token") : null;
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
+
+  const res = await fetch("/api/orders", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || "Failed to place order. Please try again.");
+  }
+
+  const data = await res.json();
+  return {
+    success: true,
+    orderId: data.orderId || data.order?.orderId || data.order?.id,
+    order: normaliseOrder(data.order)
+  };
+}
+
 export async function fetchOrdersAdmin(statusFilter?: string, token?: string): Promise<Order[]> {
+  const isClient = typeof window !== "undefined";
+  const baseUrl = isClient ? "" : (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
   const headers = await getAuthHeadersAsync(token);
-  const res = await safeFetch(`${getApiBaseUrl()}/orders`, { headers, cache: "no-store" });
-  if (res && res.ok) {
+
+  try {
+    const url = `${baseUrl}/api/orders${statusFilter && statusFilter !== "ALL" ? `?status=${encodeURIComponent(statusFilter)}` : ""}`;
+    const res = await fetch(url, { headers, cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data.map(normaliseOrder);
+    }
+  } catch (err) {
+    console.warn("[fetchOrdersAdmin] Local API fallback:", err);
+  }
+
+  // Fallback to direct backend API
+  const backendRes = await safeFetch(`${getApiBaseUrl()}/orders`, { headers, cache: "no-store" });
+  if (backendRes && backendRes.ok) {
     try {
-      let data: Order[] = (await res.json()).map(normaliseOrder);
-      if (statusFilter) {
+      let data: Order[] = (await backendRes.json()).map(normaliseOrder);
+      if (statusFilter && statusFilter !== "ALL") {
         data = data.filter(o => o.status.toLowerCase() === statusFilter.toLowerCase());
       }
       return data;
@@ -487,7 +598,19 @@ export async function fetchOrdersAdmin(statusFilter?: string, token?: string): P
 }
 
 export async function fetchOrderByIdAdmin(id: number, token?: string): Promise<Order | null> {
+  const isClient = typeof window !== "undefined";
+  const baseUrl = isClient ? "" : (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
   const headers = await getAuthHeadersAsync(token);
+
+  try {
+    const res = await fetch(`${baseUrl}/api/orders/${id}`, { headers, cache: "no-store" });
+    if (res.ok) {
+      return normaliseOrder(await res.json());
+    }
+  } catch {
+    // fallback
+  }
+
   const res = await safeFetch(`${getApiBaseUrl()}/orders/${id}`, { headers, cache: "no-store" });
   if (res && res.ok) {
     try {
@@ -497,6 +620,20 @@ export async function fetchOrderByIdAdmin(id: number, token?: string): Promise<O
     }
   }
   return null;
+}
+
+export async function updateOrderStatusAdmin(orderId: number, status: OrderStatus, token?: string): Promise<boolean> {
+  const headers = getAuthHeaders(token);
+  try {
+    const res = await fetch(`/api/orders/${orderId}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ status })
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 // ─── CHECKOUT & COUPON VALIDATION ───────────────────────
@@ -510,26 +647,6 @@ export async function validateCoupon(code: string, orderAmount: number, token?: 
   if (res && res.ok) {
     try {
       return await res.json();
-    } catch {
-      // json error
-    }
-  }
-  return null;
-}
-
-export async function createOrder(
-  payload: { addressId: number; items: { productVariantId: number; quantity: number }[] },
-  token?: string
-): Promise<number | null> {
-  const res = await safeFetch(`${PUBLIC_API_URL}/orders`, {
-    method: "POST",
-    headers: getAuthHeaders(token),
-    body: JSON.stringify(payload)
-  });
-  if (res && res.ok) {
-    try {
-      const data = await res.json();
-      return typeof data === "number" ? data : data.orderId ?? data;
     } catch {
       // json error
     }

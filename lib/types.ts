@@ -4,8 +4,8 @@
 // ─── Enums ──────────────────────────────────────────────
 
 export type ProductStatus = "Published" | "Draft" | "Archived";
-export type OrderStatus = "Pending" | "Confirmed" | "Shipped" | "Delivered" | "Cancelled";
-export type PaymentStatus = "Pending" | "Completed" | "Failed" | "Refunded";
+export type OrderStatus = "Pending" | "Confirmed" | "Shipped" | "Delivered" | "Cancelled" | "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+export type PaymentStatus = "Pending" | "Completed" | "Failed" | "Refunded" | "Success";
 export type DiscountType = "percentage" | "flat" | "Percentage" | "Flat";
 
 // ─── Products ───────────────────────────────────────────
@@ -50,6 +50,35 @@ export interface Product {
   imageUrl?: string; // resolved from images[0]
   createdAt?: string;
   updatedAt?: string;
+}
+
+// ─── Filter Options (Backend Aligned) ────────────────────
+
+export interface CategoryFilterItem {
+  categoryId: number;
+  name: string;
+  slug: string;
+  productCount: number;
+}
+
+export interface FilterOptions {
+  categories: CategoryFilterItem[];
+  sizes: string[];
+  colors: string[];
+  minPrice: number;
+  maxPrice: number;
+}
+
+export interface ProductFilterParams {
+  categoryId?: number;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  size?: string;
+  color?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: string;
 }
 
 // ─── Categories ─────────────────────────────────────────
@@ -159,7 +188,7 @@ export interface ShippingAddress {
   postalCode: string;
 }
 
-// ─── Cart (client-side only) ────────────────────────────
+// ─── Cart & Wishlist (client-side only) ───────────────────
 
 export interface CartItem {
   productId: number;
@@ -170,6 +199,19 @@ export interface CartItem {
   size: string;
   quantity: number;
   image: string;
+}
+
+export interface WishlistItem {
+  productId: number;
+  name: string;
+  slug: string;
+  basePrice: number;
+  image: string;
+  categoryName?: string;
+  fabric?: string;
+  badge?: string;
+  badgeType?: "gold" | "lavender" | "emerald";
+  inStock?: boolean;
 }
 
 // ─── Auth & Users ────────────────────────────────────────

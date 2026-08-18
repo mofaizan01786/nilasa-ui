@@ -5,7 +5,6 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AuthProvider } from "@/components/AuthProvider";
 import { CookieConsent } from "@/components/CookieConsent";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,13 +15,12 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     return <AuthProvider>{children}</AuthProvider>;
   }
 
-  // Public Storefront Layout with Header, Footer, Mobile Bottom Nav, AuthProvider, and Cookie Consent Banner
+  // Public Storefront Layout with Header, Footer, AuthProvider, and Cookie Consent Banner
   return (
     <AuthProvider>
       <Header />
       {children}
       <Footer />
-      <MobileBottomNav />
       <CookieConsent />
     </AuthProvider>
   );

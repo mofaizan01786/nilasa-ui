@@ -16,10 +16,11 @@ export default function NotFound() {
     >
       <span
         style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "0.78rem",
+          fontFamily: "var(--font-body)",
+          fontSize: "0.82rem",
+          fontWeight: 700,
           color: "#B8912E",
-          letterSpacing: "0.12em",
+          letterSpacing: "0.08em",
           textTransform: "uppercase",
           marginBottom: 8
         }}

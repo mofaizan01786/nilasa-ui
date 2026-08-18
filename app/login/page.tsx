@@ -71,7 +71,7 @@ function LoginForm() {
         <div style={{ textAlign: "center", marginBottom: 26 }}>
           <Link href="/" style={{ display: "inline-block", marginBottom: 14 }}>
             <Image
-              src="/nilasa-logo.PNG"
+              src="/nilasa-black-logo.PNG"
               alt="Nilasa"
               width={160}
               height={52}
@@ -86,11 +86,11 @@ function LoginForm() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <span
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.68rem",
+                fontFamily: "var(--font-body)",
+                fontSize: "0.75rem",
                 color: "var(--nilasa-gold)",
                 fontWeight: 700,
-                letterSpacing: "0.14em",
+                letterSpacing: "0.08em",
                 textTransform: "uppercase"
               }}
             >
@@ -156,7 +156,7 @@ function LoginForm() {
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="name@example.com"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 style={{
@@ -203,7 +203,7 @@ function LoginForm() {
                 type={showPassword ? "text" : "password"}
                 required
                 autoComplete="current-password"
-                placeholder="••••••••"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={{

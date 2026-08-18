@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <Link href="/" style={{ display: "inline-block", marginBottom: 12 }}>
             <Image
-              src="/nilasa-logo.PNG"
+              src="/nilasa-black-logo.PNG"
               alt="Nilasa"
               width={160}
               height={52}
@@ -160,7 +160,7 @@ export default function ForgotPasswordPage() {
                   type="email"
                   required
                   autoComplete="email"
-                  placeholder="name@example.com"
+                  placeholder="Enter your registered email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{

@@ -26,8 +26,11 @@ export default async function HomePage() {
         <section className="hero">
           <div className="hero-copy">
             <div className="hero-badge-group">
-              {hero.eyebrow && <span className="eyebrow eyebrow--gold">{hero.eyebrow}</span>}
-              {hero.tagPill && <span className="rose-tag-pill">{hero.tagPill}</span>}
+              {hero.eyebrow ? (
+                <span className="eyebrow eyebrow--gold">{hero.eyebrow}</span>
+              ) : hero.tagPill ? (
+                <span className="rose-tag-pill">{hero.tagPill}</span>
+              ) : null}
             </div>
 
             <h1>{hero.headline || "Grace In Every Thread"}</h1>
@@ -97,15 +100,15 @@ export default async function HomePage() {
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
               <div style={{ background: "rgba(255, 255, 255, 0.08)", border: "1px solid rgba(212, 178, 88, 0.3)", padding: "12px 20px", borderRadius: 12, display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#202B45", border: "1px solid #B8912E" }}></span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem", color: "#D4B258" }}>Royal Indigo</span>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: "0.85rem", fontWeight: 600, color: "#D4B258" }}>Royal Indigo</span>
               </div>
               <div style={{ background: "rgba(255, 255, 255, 0.08)", border: "1px solid rgba(212, 178, 88, 0.3)", padding: "12px 20px", borderRadius: 12, display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#D8B4A0" }}></span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem", color: "#D8B4A0" }}>Dusty Rose</span>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: "0.85rem", fontWeight: 600, color: "#D8B4A0" }}>Dusty Rose</span>
               </div>
               <div style={{ background: "rgba(255, 255, 255, 0.08)", border: "1px solid rgba(212, 178, 88, 0.3)", padding: "12px 20px", borderRadius: 12, display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#B8912E" }}></span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem", color: "#D4B258" }}>Muted Gold</span>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: "0.85rem", fontWeight: 600, color: "#D4B258" }}>Muted Gold</span>
               </div>
             </div>
           </div>

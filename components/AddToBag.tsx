@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "./CartProvider";
+import { useWishlist } from "./WishlistProvider";
 import type { Product } from "@/lib/types";
 import { getProductImage } from "@/lib/catalog";
 import {
   ShoppingBag,
+  Heart,
   Ruler,
   Check,
   Truck,
@@ -23,6 +25,9 @@ interface AddToBagProps {
 export function AddToBag({ product }: AddToBagProps) {
   const router = useRouter();
   const { add } = useCart();
+  const { isWishlisted: checkWishlisted, toggle: toggleWishlist } = useWishlist();
+  const prodId = product.productId || product.id || 0;
+  const isWishlisted = checkWishlisted(prodId);
 
   // Determine available sizes from variants or fallback
   const variantSizes = product.variants && product.variants.length > 0
@@ -60,7 +65,7 @@ export function AddToBag({ product }: AddToBagProps) {
   const handleBuyNow = () => {
     if (isOutOfStock) return;
     add({
-      productId: product.productId || product.id || 0,
+      productId: prodId,
       variantId: selectedVariant?.productVariantId,
       name: product.name,
       slug: product.slug,
@@ -70,6 +75,21 @@ export function AddToBag({ product }: AddToBagProps) {
       image: getProductImage(product)
     });
     router.push("/checkout");
+  };
+
+  const handleToggleWishlist = () => {
+    toggleWishlist({
+      productId: prodId,
+      name: product.name,
+      slug: product.slug,
+      basePrice: selectedVariant?.price || product.basePrice,
+      image: getProductImage(product),
+      categoryName: product.categoryName,
+      fabric: product.fabric,
+      badge: product.badge,
+      badgeType: product.badgeType,
+      inStock: !isOutOfStock
+    });
   };
 
   return (
@@ -268,10 +288,10 @@ export function AddToBag({ product }: AddToBagProps) {
               border: "1px solid var(--nilasa-indigo)",
               backgroundColor: added ? "#1E8E5A" : "var(--nilasa-indigo)",
               color: "#FFFFFF",
-              fontFamily: "var(--font-mono)",
-              fontSize: "13px",
+              fontFamily: "var(--font-body)",
+              fontSize: "13.5px",
               fontWeight: 700,
-              letterSpacing: "0.08em",
+              letterSpacing: "0.04em",
               textTransform: "uppercase",
               display: "inline-flex",
               alignItems: "center",
@@ -294,6 +314,34 @@ export function AddToBag({ product }: AddToBagProps) {
               </>
             )}
           </button>
+
+          {/* Wishlist Heart Action Button */}
+          <button
+            type="button"
+            onClick={handleToggleWishlist}
+            aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 8,
+              border: isWishlisted ? "1.5px solid #EF4444" : "1px solid var(--nilasa-border)",
+              backgroundColor: isWishlisted ? "#FEF2F2" : "#FFFFFF",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+              flexShrink: 0
+            }}
+          >
+            <Heart
+              size={20}
+              fill={isWishlisted ? "#EF4444" : "none"}
+              color={isWishlisted ? "#EF4444" : "var(--nilasa-indigo)"}
+              strokeWidth={isWishlisted ? 2.5 : 1.8}
+            />
+          </button>
         </div>
 
         {/* Secondary Instant Buy Now Button */}
@@ -308,10 +356,10 @@ export function AddToBag({ product }: AddToBagProps) {
             border: "1px solid var(--nilasa-gold)",
             backgroundColor: "var(--nilasa-gold)",
             color: "#FFFFFF",
-            fontFamily: "var(--font-mono)",
-            fontSize: "13px",
+            fontFamily: "var(--font-body)",
+            fontSize: "13.5px",
             fontWeight: 700,
-            letterSpacing: "0.08em",
+            letterSpacing: "0.04em",
             textTransform: "uppercase",
             display: "inline-flex",
             alignItems: "center",

@@ -218,7 +218,7 @@ function RegisterForm() {
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <Link href="/" style={{ display: "inline-block", marginBottom: 14 }}>
             <Image
-              src="/nilasa-logo.PNG"
+              src="/nilasa-black-logo.PNG"
               alt="Nilasa"
               width={160}
               height={52}
@@ -349,7 +349,7 @@ function RegisterForm() {
                   type="text"
                   required
                   autoComplete="name"
-                  placeholder="e.g. Ayesha Sharma"
+                  placeholder="Enter your full name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={{
@@ -389,7 +389,7 @@ function RegisterForm() {
                   type="email"
                   required
                   autoComplete="email"
-                  placeholder="ayesha@example.com"
+                  placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
@@ -428,7 +428,7 @@ function RegisterForm() {
                   id="phone"
                   type="tel"
                   autoComplete="tel"
-                  placeholder="+91 98765 43210"
+                  placeholder="10-digit mobile number"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   style={{
@@ -469,7 +469,7 @@ function RegisterForm() {
                     type={showPassword ? "text" : "password"}
                     required
                     autoComplete="new-password"
-                    placeholder="8+ chars"
+                    placeholder="8+ characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={{
@@ -524,7 +524,7 @@ function RegisterForm() {
                     type={showPassword ? "text" : "password"}
                     required
                     autoComplete="new-password"
-                    placeholder="Repeat"
+                    placeholder="Re-enter password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     style={{

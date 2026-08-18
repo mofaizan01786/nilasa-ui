@@ -234,6 +234,56 @@ export function OrderDrawer({ isOpen, onClose, order, onRefunded }: OrderDrawerP
             </div>
           </div>
 
+          {/* Fulfillment Status Controls */}
+          <div
+            style={{
+              padding: "14px 16px",
+              borderRadius: 6,
+              border: "1px solid var(--admin-slate-200)",
+              backgroundColor: "var(--admin-surface)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10
+            }}
+          >
+            <span style={{ fontSize: "11px", color: "var(--admin-slate-600)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Update Order Status
+            </span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {["pending", "confirmed", "shipped", "delivered", "cancelled"].map((st) => {
+                const isCurrent = order.status.toLowerCase() === st;
+                return (
+                  <button
+                    key={st}
+                    type="button"
+                    disabled={isCurrent}
+                    onClick={async () => {
+                      const ok = await import("@/lib/api").then((m) => m.updateOrderStatusAdmin(orderId, st as any));
+                      if (ok) {
+                        if (onRefunded) onRefunded();
+                        onClose();
+                      }
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      textTransform: "capitalize",
+                      cursor: isCurrent ? "default" : "pointer",
+                      border: isCurrent ? "1.5px solid var(--admin-accent)" : "1px solid var(--admin-slate-300)",
+                      background: isCurrent ? "var(--admin-accent)" : "#FFFFFF",
+                      color: isCurrent ? "#FFFFFF" : "var(--admin-slate-700)",
+                      opacity: isCurrent ? 0.9 : 1
+                    }}
+                  >
+                    {st === "confirmed" ? "✓ Confirmed" : st === "shipped" ? "🚚 Shipped" : st === "delivered" ? "📦 Delivered" : st === "cancelled" ? "✕ Cancelled" : "Pending"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Action buttons */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             {canRefund ? (

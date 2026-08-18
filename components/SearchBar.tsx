@@ -273,15 +273,15 @@ export function SearchBar({ allProducts }: { allProducts?: Product[] }) {
         )}
       </div>
 
-      {/* ─── MOBILE SEARCH TRIGGER BUTTON (Hidden so only dedicated bottom search bar is visible) ─── */}
-      <div className="search-bar-mobile-trigger" style={{ display: "none" }}>
+      {/* ─── MOBILE SEARCH TRIGGER BUTTON (Sleek Minimalist Icon in Navbar) ─── */}
+      <div className="search-bar-mobile-trigger">
         <button
           type="button"
           onClick={() => setMobileOverlayOpen(true)}
-          className="search-mobile-btn"
-          aria-label="Open search bar"
+          className="search-mobile-icon-btn"
+          aria-label="Open search dialog"
         >
-          <Search size={18} strokeWidth={2} color="#8E6EA8" />
+          <Search size={20} strokeWidth={1.9} />
         </button>
       </div>
 

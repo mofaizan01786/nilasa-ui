@@ -16,7 +16,7 @@ export function AdminSidebarResponsive() {
       <header className="admin-mobile-header">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Image
-            src="/nilasa-logo.PNG"
+            src="/nilasa-black-logo.PNG"
             alt="Nilasa"
             width={90}
             height={28}
@@ -81,7 +81,7 @@ export function AdminSidebarResponsive() {
         <div className="admin-sidebar-header">
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
             <Image
-              src="/nilasa-logo.PNG"
+              src="/nilasa-black-logo.PNG"
               alt="Nilasa"
               width={120}
               height={38}

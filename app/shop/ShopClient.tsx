@@ -1,198 +1,280 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useTransition, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Product, Category } from "@/lib/types";
-import { fetchPublishedProducts } from "@/lib/api";
+import { Product, Category, FilterOptions, ProductFilterParams } from "@/lib/types";
+import { fetchProductsWithFilters, fetchProductFilters } from "@/lib/api";
 import { ProductCard } from "@/components/ProductCard";
 import {
   SlidersHorizontal,
   ArrowUpDown,
   X,
   Check,
-  Sparkles,
-  Search
+  RotateCcw,
+  Loader2
 } from "lucide-react";
 
-const PRESET_PILLS = [
-  { id: "all", label: "All", queryParam: "" },
-  { id: "new", label: "New Arrivals", queryParam: "new" },
-  { id: "suits", label: "Suits", queryParam: "suits" },
-  { id: "anarkalis", label: "Anarkalis", queryParam: "anarkali" },
-  { id: "kurtis", label: "Kurtis", queryParam: "kurtis" },
-  { id: "coords", label: "Co-ords", queryParam: "co-ord-sets" },
-  { id: "lehengas", label: "Lehengas", queryParam: "lehengas" },
-  { id: "dupattas", label: "Dupattas", queryParam: "dupattas" }
-];
+// Standard color mapping for visual swatches
+const COLOR_HEX_MAP: Record<string, string> = {
+  navy: "#1B243B",
+  blue: "#2563EB",
+  lavender: "#8E6EA8",
+  lilac: "#B39DCB",
+  purple: "#7C5999",
+  olive: "#354232",
+  green: "#15803D",
+  emerald: "#047857",
+  sage: "#849978",
+  gold: "#B8912E",
+  yellow: "#D97706",
+  ivory: "#F7F3ED",
+  white: "#FFFFFF",
+  cream: "#FDFBF7",
+  rose: "#D8B4A0",
+  pink: "#EC4899",
+  red: "#DC2626",
+  maroon: "#7F1D1D",
+  black: "#111827",
+  grey: "#6B7280",
+  gray: "#6B7280",
+  brown: "#78350F"
+};
+
+function getColorHex(colorName: string): string {
+  const normalized = colorName.toLowerCase().trim();
+  for (const [key, hex] of Object.entries(COLOR_HEX_MAP)) {
+    if (normalized.includes(key)) return hex;
+  }
+  return "#D1D5DB";
+}
 
 export function ShopClient({
-  initialProducts,
-  categories
+  initialProducts = [],
+  categories = [],
+  initialFilters = null
 }: {
   initialProducts?: Product[];
   categories?: Category[];
+  initialFilters?: FilterOptions | null;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
-  const q = searchParams.get("q") || "";
-  const categoryParam = searchParams.get("category") || searchParams.get("type") || "";
+  // Search & Category URL params
+  const qParam = searchParams.get("q") || searchParams.get("search") || "";
+  const catParam = searchParams.get("category") || searchParams.get("type") || "";
+  const sizeParam = searchParams.get("size") || "all";
+  const colorParam = searchParams.get("color") || "all";
+  const minPriceParam = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : null;
+  const maxPriceParam = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : null;
+  const sortParam = searchParams.get("sortBy") || "featured";
 
-  const [allProducts, setAllProducts] = useState<Product[]>(initialProducts || []);
-  const [activePill, setActivePill] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"featured" | "price-asc" | "price-desc" | "newest">("featured");
-  const [selectedFabric, setSelectedFabric] = useState<string>("all");
+  // State
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [filters, setFilters] = useState<FilterOptions | null>(initialFilters);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Active filter selections
+  const [selectedCategory, setSelectedCategory] = useState<string>(catParam || "all");
+  const [selectedSize, setSelectedSize] = useState<string>(sizeParam);
+  const [selectedColor, setSelectedColor] = useState<string>(colorParam);
+  const [minPrice, setMinPrice] = useState<number | "">(minPriceParam ?? "");
+  const [maxPrice, setMaxPrice] = useState<number | "">(maxPriceParam ?? "");
+  const [sortBy, setSortBy] = useState<string>(sortParam);
 
   // Modals
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [sortModalOpen, setSortModalOpen] = useState(false);
 
+  // Load available filter options if not supplied by SSR
   useEffect(() => {
-    fetchPublishedProducts()
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setAllProducts(data);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (!filters) {
+      fetchProductFilters()
+        .then((data) => {
+          if (data) setFilters(data);
+        })
+        .catch(() => {});
+    }
+  }, [filters]);
 
-  // Sync active pill with search params
+  // Sync state from URL search params
   useEffect(() => {
-    if (!categoryParam && !q) {
-      setActivePill("all");
-    } else {
-      const match = PRESET_PILLS.find(
-        (p) => p.queryParam && (categoryParam.toLowerCase().includes(p.queryParam) || q.toLowerCase().includes(p.queryParam))
-      );
-      setActivePill(match ? match.id : "all");
-    }
-  }, [categoryParam, q]);
+    setSelectedCategory(catParam || "all");
+    setSelectedSize(sizeParam);
+    setSelectedColor(colorParam);
+    setMinPrice(minPriceParam ?? "");
+    setMaxPrice(maxPriceParam ?? "");
+    setSortBy(sortParam);
+  }, [catParam, sizeParam, colorParam, minPriceParam, maxPriceParam, sortParam]);
 
-  // Filter & Sort computation
-  const filteredProducts = useMemo(() => {
-    let list = [...allProducts];
+  // Master fetch function querying backend filter API
+  const applyFilters = useCallback(
+    async (params: {
+      category?: string;
+      size?: string;
+      color?: string;
+      minP?: number | "";
+      maxP?: number | "";
+      sort?: string;
+      search?: string;
+    }) => {
+      setIsLoading(true);
+      const cat = params.category !== undefined ? params.category : selectedCategory;
+      const sz = params.size !== undefined ? params.size : selectedSize;
+      const clr = params.color !== undefined ? params.color : selectedColor;
+      const minP = params.minP !== undefined ? params.minP : minPrice;
+      const maxP = params.maxP !== undefined ? params.maxP : maxPrice;
+      const srt = params.sort !== undefined ? params.sort : sortBy;
+      const srch = params.search !== undefined ? params.search : qParam;
 
-    // 1. Search Query
-    if (q.trim()) {
-      const term = q.toLowerCase().trim();
-      list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(term) ||
-          p.description?.toLowerCase().includes(term) ||
-          p.categorySlug?.toLowerCase().includes(term)
-      );
-    }
-
-    // 2. Category / Pill filter
-    if (activePill !== "all") {
-      const pillObj = PRESET_PILLS.find((p) => p.id === activePill);
-      if (pillObj && pillObj.queryParam) {
-        const pTerm = pillObj.queryParam.toLowerCase();
-        list = list.filter(
-          (p) =>
-            p.categorySlug?.toLowerCase().includes(pTerm) ||
-            p.name.toLowerCase().includes(pTerm) ||
-            p.categoryName?.toLowerCase().includes(pTerm) ||
-            (pTerm === "new" && (p.badge?.toLowerCase().includes("new") || p.status === "Published"))
-        );
+      // Find category ID if selected by slug
+      let catId: number | undefined = undefined;
+      if (cat && cat !== "all") {
+        const found =
+          filters?.categories.find((c) => c.slug.toLowerCase() === cat.toLowerCase()) ||
+          categories.find((c) => c.slug.toLowerCase() === cat.toLowerCase() || c.categoryId.toString() === cat);
+        if (found) catId = found.categoryId;
       }
-    } else if (categoryParam) {
-      const cTerm = categoryParam.toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.categorySlug?.toLowerCase() === cTerm ||
-          p.categoryName?.toLowerCase().includes(cTerm) ||
-          p.name.toLowerCase().includes(cTerm)
-      );
-    }
 
-    // 3. Fabric filter
-    if (selectedFabric !== "all") {
-      list = list.filter((p) =>
-        p.fabric?.toLowerCase().includes(selectedFabric.toLowerCase()) ||
-        p.description?.toLowerCase().includes(selectedFabric.toLowerCase())
-      );
-    }
+      const queryParams: ProductFilterParams = {
+        search: srch || undefined,
+        categoryId: catId,
+        size: sz !== "all" ? sz : undefined,
+        color: clr !== "all" ? clr : undefined,
+        minPrice: typeof minP === "number" ? minP : undefined,
+        maxPrice: typeof maxP === "number" ? maxP : undefined,
+        sortBy: srt !== "featured" ? srt : undefined
+      };
 
-    // 4. Sorting
-    if (sortBy === "price-asc") {
-      list.sort((a, b) => a.basePrice - b.basePrice);
-    } else if (sortBy === "price-desc") {
-      list.sort((a, b) => b.basePrice - a.basePrice);
-    } else if (sortBy === "newest") {
-      list.sort((a, b) => (b.productId || 0) - (a.productId || 0));
-    }
+      try {
+        const result = await fetchProductsWithFilters(queryParams);
+        setProducts(result);
+      } catch {
+        // keep previous state
+      } finally {
+        setIsLoading(false);
+      }
 
-    return list;
-  }, [allProducts, q, activePill, categoryParam, selectedFabric, sortBy]);
+      // Update URL query string without page reload
+      const newUrlParams = new URLSearchParams();
+      if (srch) newUrlParams.set("q", srch);
+      if (cat && cat !== "all") newUrlParams.set("category", cat);
+      if (sz && sz !== "all") newUrlParams.set("size", sz);
+      if (clr && clr !== "all") newUrlParams.set("color", clr);
+      if (typeof minP === "number") newUrlParams.set("minPrice", minP.toString());
+      if (typeof maxP === "number") newUrlParams.set("maxPrice", maxP.toString());
+      if (srt && srt !== "featured") newUrlParams.set("sortBy", srt);
 
-  const handlePillClick = (pillId: string, param: string) => {
-    setActivePill(pillId);
-    if (pillId === "all") {
-      router.push("/shop", { scroll: false });
-    } else {
-      router.push(`/shop?category=${encodeURIComponent(param)}`, { scroll: false });
-    }
+      const qs = newUrlParams.toString();
+      startTransition(() => {
+        router.push(`/shop${qs ? `?${qs}` : ""}`, { scroll: false });
+      });
+    },
+    [selectedCategory, selectedSize, selectedColor, minPrice, maxPrice, sortBy, qParam, filters, categories, router]
+  );
+
+  // Trigger query when pills or sort change
+  const handlePillClick = (catSlug: string) => {
+    setSelectedCategory(catSlug);
+    applyFilters({ category: catSlug });
   };
+
+  const handleSortChange = (newSort: string) => {
+    setSortBy(newSort);
+    setSortModalOpen(false);
+    applyFilters({ sort: newSort });
+  };
+
+  const handleClearAll = () => {
+    setSelectedCategory("all");
+    setSelectedSize("all");
+    setSelectedColor("all");
+    setMinPrice("");
+    setMaxPrice("");
+    setSortBy("featured");
+    setFilterModalOpen(false);
+    applyFilters({
+      category: "all",
+      size: "all",
+      color: "all",
+      minP: "",
+      maxP: "",
+      sort: "featured",
+      search: ""
+    });
+  };
+
+  // Derive categories list (combining backend filter data + categories fallback)
+  const categoryItems = filters?.categories?.length
+    ? filters.categories
+    : categories.map((c) => ({
+        categoryId: c.categoryId,
+        name: c.name,
+        slug: c.slug,
+        productCount: 0
+      }));
+
+  const availableSizes = filters?.sizes?.length
+    ? filters.sizes
+    : ["S", "M", "L", "XL", "XXL", "Free Size"];
+
+  const availableColors = filters?.colors?.length
+    ? filters.colors
+    : ["Lavender", "Olive", "Gold", "Ivory", "Navy", "Rose", "Emerald"];
+
+  const activeFiltersCount =
+    (selectedCategory !== "all" ? 1 : 0) +
+    (selectedSize !== "all" ? 1 : 0) +
+    (selectedColor !== "all" ? 1 : 0) +
+    (typeof minPrice === "number" || typeof maxPrice === "number" ? 1 : 0);
 
   return (
     <div className="mobile-shop-experience">
-      {/* ── 1. Hero / Shop Title Banner with Lavender Botanical Illustration ── */}
-      <section className="shop-hero-botanical">
-        <div className="shop-hero-content">
-          <span className="shop-kicker">SHOP</span>
-          <h1 className="shop-hero-title">
-            Indian womenswear,<br />thoughtfully handcrafted.
-          </h1>
-          <p className="shop-hero-subtitle">
-            Timeless styles. Modern souls.
-          </p>
-        </div>
-
-        {/* Decorative Botanical Lavender SVG Sprigs Illustration */}
-        <div className="shop-hero-botanical-art" aria-hidden="true">
-          <svg viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg" className="botanical-svg">
-            <g opacity="0.85">
-              {/* Stem 1 */}
-              <path d="M60 230 C 65 160, 95 100, 110 30" stroke="#7A8B6F" strokeWidth="2.2" strokeLinecap="round" />
-              {/* Stem 2 */}
-              <path d="M110 230 C 120 150, 145 90, 160 20" stroke="#6F8364" strokeWidth="2.2" strokeLinecap="round" />
-              {/* Leaves */}
-              <path d="M65 170 C 50 160, 45 145, 55 140 C 65 145, 70 160, 65 170 Z" fill="#92A387" />
-              <path d="M85 130 C 100 120, 105 105, 95 100 C 85 105, 80 120, 85 130 Z" fill="#92A387" />
-              <path d="M125 140 C 140 130, 145 115, 135 110 C 125 115, 120 130, 125 140 Z" fill="#849978" />
-              {/* Lavender Flower Buds Sprigs */}
-              <ellipse cx="108" cy="45" rx="7" ry="4" fill="#9D84B7" transform="rotate(-20 108 45)" />
-              <ellipse cx="114" cy="40" rx="7" ry="4" fill="#B39DCB" transform="rotate(20 114 40)" />
-              <ellipse cx="109" cy="32" rx="6" ry="3.5" fill="#8C71A8" transform="rotate(-15 109 32)" />
-              <ellipse cx="113" cy="27" rx="6" ry="3.5" fill="#A58EC1" transform="rotate(25 113 27)" />
-              <ellipse cx="111" cy="20" rx="5" ry="3" fill="#8C71A8" />
-
-              <ellipse cx="158" cy="35" rx="7" ry="4" fill="#8C71A8" transform="rotate(-20 158 35)" />
-              <ellipse cx="164" cy="30" rx="7" ry="4" fill="#A58EC1" transform="rotate(20 164 30)" />
-              <ellipse cx="159" cy="22" rx="6" ry="3.5" fill="#9D84B7" transform="rotate(-15 159 22)" />
-              <ellipse cx="163" cy="17" rx="6" ry="3.5" fill="#B39DCB" transform="rotate(25 163 17)" />
-              <ellipse cx="161" cy="10" rx="5" ry="3" fill="#7C6099" />
-            </g>
-          </svg>
+      {/* ── Compact Luxury Shop Header ── */}
+      <section className="shop-header-compact">
+        <div className="shop-header-compact-inner">
+          <div className="shop-title-group">
+            <h1 className="shop-compact-title">
+              {qParam
+                ? `Results for "${qParam}"`
+                : selectedCategory !== "all"
+                ? categoryItems.find((c) => c.slug === selectedCategory)?.name || "All Collections"
+                : "All Collections"}
+            </h1>
+            <span className="shop-compact-count">
+              ({products.length} {products.length === 1 ? "piece" : "pieces"})
+            </span>
+          </div>
         </div>
       </section>
 
-      {/* ── 2. Horizontal Filter Chips / Category Pills ── */}
+      {/* ── 2. Dynamic Category Filter Pills Row (Backend Powered) ── */}
       <nav className="shop-pills-row" aria-label="Category Filters">
         <div className="shop-pills-scroll">
-          {PRESET_PILLS.map((pill) => {
-            const isActive = activePill === pill.id;
+          <button
+            type="button"
+            onClick={() => handlePillClick("all")}
+            className={`shop-pill-chip ${selectedCategory === "all" ? "active" : ""}`}
+          >
+            <span>All</span>
+          </button>
+          {categoryItems.map((cat) => {
+            const isActive = selectedCategory.toLowerCase() === cat.slug.toLowerCase();
             return (
               <button
-                key={pill.id}
+                key={cat.categoryId || cat.slug}
                 type="button"
-                onClick={() => handlePillClick(pill.id, pill.queryParam)}
+                onClick={() => handlePillClick(cat.slug)}
                 className={`shop-pill-chip ${isActive ? "active" : ""}`}
               >
-                <span>{pill.label}</span>
+                <span>{cat.name}</span>
+                {cat.productCount > 0 && (
+                  <span style={{ opacity: 0.7, fontSize: "0.7rem", marginLeft: 4 }}>
+                    ({cat.productCount})
+                  </span>
+                )}
               </button>
             );
           })}
@@ -202,7 +284,15 @@ export function ShopClient({
       {/* ── 3. Product Count & Filter / Sort Action Bar ── */}
       <section className="shop-controls-bar">
         <div className="shop-product-count">
-          <strong>{filteredProducts.length}</strong> Products
+          {isLoading || isPending ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#8E6EA8" }}>
+              <Loader2 size={14} className="animate-spin" /> Filtering...
+            </span>
+          ) : (
+            <>
+              <strong>{products.length}</strong> {products.length === 1 ? "Product" : "Products"}
+            </>
+          )}
         </div>
 
         <div className="shop-controls-actions">
@@ -210,83 +300,362 @@ export function ShopClient({
             type="button"
             className="shop-control-btn"
             onClick={() => setFilterModalOpen(true)}
+            aria-label="Open filter modal"
           >
             <SlidersHorizontal size={14} />
             <span>Filter</span>
-            {selectedFabric !== "all" && <span className="control-indicator">•</span>}
+            {activeFiltersCount > 0 && (
+              <span
+                style={{
+                  background: "#8E6EA8",
+                  color: "#FFFFFF",
+                  borderRadius: "999px",
+                  fontSize: "0.65rem",
+                  padding: "1px 6px",
+                  fontWeight: 700
+                }}
+              >
+                {activeFiltersCount}
+              </span>
+            )}
           </button>
 
           <button
             type="button"
             className="shop-control-btn"
             onClick={() => setSortModalOpen(true)}
+            aria-label="Open sort modal"
           >
             <ArrowUpDown size={14} />
-            <span>Sort</span>
+            <span>
+              {sortBy === "price-asc"
+                ? "Price: Low to High"
+                : sortBy === "price-desc"
+                ? "Price: High to Low"
+                : sortBy === "newest"
+                ? "Newest"
+                : sortBy === "name-asc"
+                ? "A - Z"
+                : "Sort"}
+            </span>
           </button>
         </div>
       </section>
 
-      {/* ── 4. 2-Column Mobile Product Grid ── */}
-      <section className="shop-grid-section">
-        {filteredProducts.length > 0 ? (
-          <div className="mobile-product-grid">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id || product.slug} product={product} />
-            ))}
-          </div>
-        ) : (
-          <div className="shop-empty-state">
-            <span style={{ fontSize: "2.8rem", display: "block", marginBottom: 12 }}>🌿</span>
-            <h3>No garments match your filters</h3>
-            <p>Try resetting the category filter or searching for another silhouette.</p>
+      {/* ── Active Filter Tags Row ── */}
+      {activeFiltersCount > 0 && (
+        <section className="active-filter-tags-row" style={{ padding: "0 16px 12px", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+          <span style={{ fontSize: "0.72rem", color: "#64748B", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.06em", marginRight: 4 }}>
+            Active:
+          </span>
+
+          {selectedCategory !== "all" && (
             <button
               type="button"
               onClick={() => {
-                setActivePill("all");
-                setSelectedFabric("all");
-                router.push("/shop");
+                setSelectedCategory("all");
+                applyFilters({ category: "all" });
               }}
-              className="button button--gold"
-              style={{ marginTop: 16 }}
+              className="active-filter-tag"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "#FAF8FD",
+                border: "1px solid #E4D9F0",
+                color: "#7C5999",
+                borderRadius: 999,
+                padding: "3px 10px",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
             >
-              Reset Filters
+              Category: {categoryItems.find((c) => c.slug === selectedCategory)?.name || selectedCategory}
+              <X size={12} />
+            </button>
+          )}
+
+          {selectedSize !== "all" && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSize("all");
+                applyFilters({ size: "all" });
+              }}
+              className="active-filter-tag"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "#FAF8FD",
+                border: "1px solid #E4D9F0",
+                color: "#7C5999",
+                borderRadius: 999,
+                padding: "3px 10px",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              Size: {selectedSize}
+              <X size={12} />
+            </button>
+          )}
+
+          {selectedColor !== "all" && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedColor("all");
+                applyFilters({ color: "all" });
+              }}
+              className="active-filter-tag"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "#FAF8FD",
+                border: "1px solid #E4D9F0",
+                color: "#7C5999",
+                borderRadius: 999,
+                padding: "3px 10px",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              Color: {selectedColor}
+              <X size={12} />
+            </button>
+          )}
+
+          {(typeof minPrice === "number" || typeof maxPrice === "number") && (
+            <button
+              type="button"
+              onClick={() => {
+                setMinPrice("");
+                setMaxPrice("");
+                applyFilters({ minP: "", maxP: "" });
+              }}
+              className="active-filter-tag"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "#FAF8FD",
+                border: "1px solid #E4D9F0",
+                color: "#7C5999",
+                borderRadius: 999,
+                padding: "3px 10px",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              Price: ₹{minPrice || 0} - ₹{maxPrice || "Max"}
+              <X size={12} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleClearAll}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#DC2626",
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              marginLeft: 4,
+              textDecoration: "underline"
+            }}
+          >
+            Reset All
+          </button>
+        </section>
+      )}
+
+      {/* ── 4. Responsive Product Grid ── */}
+      <section className="shop-grid-section">
+        {products.length > 0 ? (
+          <div className="mobile-product-grid">
+            {products.map((product) => (
+              <ProductCard key={product.id || product.productId || product.slug} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="shop-empty-state" style={{ textAlign: "center", padding: "60px 20px", background: "#FFFFFF", borderRadius: 16, border: "1px dashed #E0D7C9" }}>
+            <span style={{ fontSize: "2.8rem", display: "block", marginBottom: 12 }}>🌿</span>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "var(--fs-h3)", color: "var(--nilasa-indigo)", margin: "0 0 8px" }}>
+              No garments match your filters
+            </h3>
+            <p style={{ color: "var(--ink-muted)", fontSize: "var(--fs-body-base)", maxWidth: 440, margin: "0 auto 20px" }}>
+              Try broadening your size, color, or price filters to discover handcrafted ethnic pieces.
+            </p>
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="button button--gold"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              <RotateCcw size={15} /> Reset All Filters
             </button>
           </div>
         )}
       </section>
 
-      {/* ── 5. Interactive Filter Bottom Drawer ── */}
+      {/* ── 5. Interactive Filter Bottom Drawer (Backend Powered) ── */}
       {filterModalOpen && (
         <div className="mobile-drawer-overlay" onClick={() => setFilterModalOpen(false)}>
-          <div className="mobile-drawer-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="mobile-drawer-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "85vh" }}>
             <div className="mobile-drawer-header">
               <h3>Filter Garments</h3>
               <button
                 type="button"
                 onClick={() => setFilterModalOpen(false)}
                 className="mobile-drawer-close"
+                aria-label="Close filter drawer"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="mobile-drawer-body">
-              {/* Fabric Selection */}
+            <div className="mobile-drawer-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* Category Filter */}
               <div className="drawer-filter-group">
-                <span className="drawer-filter-title">Fabric & Weave</span>
+                <span className="drawer-filter-title">Category</span>
                 <div className="drawer-chips-grid">
-                  {["all", "Chanderi", "Cotton", "Silk", "Organza", "Linen"].map((fab) => (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory("all")}
+                    className={`drawer-chip ${selectedCategory === "all" ? "selected" : ""}`}
+                  >
+                    <span>All Categories</span>
+                    {selectedCategory === "all" && <Check size={13} />}
+                  </button>
+                  {categoryItems.map((cat) => (
                     <button
-                      key={fab}
+                      key={cat.categoryId || cat.slug}
                       type="button"
-                      onClick={() => setSelectedFabric(fab)}
-                      className={`drawer-chip ${selectedFabric === fab ? "selected" : ""}`}
+                      onClick={() => setSelectedCategory(cat.slug)}
+                      className={`drawer-chip ${selectedCategory.toLowerCase() === cat.slug.toLowerCase() ? "selected" : ""}`}
                     >
-                      <span>{fab === "all" ? "All Fabrics" : fab}</span>
-                      {selectedFabric === fab && <Check size={13} />}
+                      <span>{cat.name}</span>
+                      {cat.productCount > 0 && <span style={{ opacity: 0.7, fontSize: "0.72rem" }}>({cat.productCount})</span>}
+                      {selectedCategory.toLowerCase() === cat.slug.toLowerCase() && <Check size={13} />}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Size Filter (Backend API) */}
+              <div className="drawer-filter-group">
+                <span className="drawer-filter-title">Size</span>
+                <div className="drawer-chips-grid">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSize("all")}
+                    className={`drawer-chip ${selectedSize === "all" ? "selected" : ""}`}
+                  >
+                    <span>All Sizes</span>
+                    {selectedSize === "all" && <Check size={13} />}
+                  </button>
+                  {availableSizes.map((sz) => (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => setSelectedSize(sz)}
+                      className={`drawer-chip ${selectedSize === sz ? "selected" : ""}`}
+                    >
+                      <span>{sz}</span>
+                      {selectedSize === sz && <Check size={13} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Color Filter (Backend API with Visual Swatches) */}
+              <div className="drawer-filter-group">
+                <span className="drawer-filter-title">Color</span>
+                <div className="drawer-chips-grid">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedColor("all")}
+                    className={`drawer-chip ${selectedColor === "all" ? "selected" : ""}`}
+                  >
+                    <span>All Colors</span>
+                    {selectedColor === "all" && <Check size={13} />}
+                  </button>
+                  {availableColors.map((clr) => (
+                    <button
+                      key={clr}
+                      type="button"
+                      onClick={() => setSelectedColor(clr)}
+                      className={`drawer-chip ${selectedColor === clr ? "selected" : ""}`}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                    >
+                      <span
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          background: getColorHex(clr),
+                          border: "1px solid rgba(0,0,0,0.15)",
+                          display: "inline-block"
+                        }}
+                      />
+                      <span>{clr}</span>
+                      {selectedColor === clr && <Check size={13} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price Range Filter (Backend API) */}
+              <div className="drawer-filter-group">
+                <span className="drawer-filter-title">Price Range (₹)</span>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "0.72rem", color: "#64748B", marginBottom: 4 }}>
+                      Min Price
+                    </label>
+                    <input
+                      type="number"
+                      placeholder={filters?.minPrice ? `₹${filters.minPrice}` : "₹ Min"}
+                      value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value ? Number(e.target.value) : "")}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #E5E7EB",
+                        fontSize: "0.85rem",
+                        fontFamily: "var(--font-mono)"
+                      }}
+                    />
+                  </div>
+                  <span style={{ color: "#94A3B8", marginTop: 18 }}>–</span>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "0.72rem", color: "#64748B", marginBottom: 4 }}>
+                      Max Price
+                    </label>
+                    <input
+                      type="number"
+                      placeholder={filters?.maxPrice ? `₹${filters.maxPrice}` : "₹ Max"}
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value ? Number(e.target.value) : "")}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #E5E7EB",
+                        fontSize: "0.85rem",
+                        fontFamily: "var(--font-mono)"
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -294,28 +663,27 @@ export function ShopClient({
             <div className="mobile-drawer-footer">
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedFabric("all");
-                  setActivePill("all");
-                  setFilterModalOpen(false);
-                }}
+                onClick={handleClearAll}
                 className="drawer-btn-secondary"
               >
                 Clear All
               </button>
               <button
                 type="button"
-                onClick={() => setFilterModalOpen(false)}
+                onClick={() => {
+                  setFilterModalOpen(false);
+                  applyFilters({});
+                }}
                 className="drawer-btn-primary"
               >
-                Apply Filters ({filteredProducts.length})
+                Apply Filters
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── 6. Interactive Sort Bottom Drawer ── */}
+      {/* ── 6. Interactive Sort Bottom Drawer (Backend Supported) ── */}
       {sortModalOpen && (
         <div className="mobile-drawer-overlay" onClick={() => setSortModalOpen(false)}>
           <div className="mobile-drawer-sheet" onClick={(e) => e.stopPropagation()}>
@@ -325,6 +693,7 @@ export function ShopClient({
                 type="button"
                 onClick={() => setSortModalOpen(false)}
                 className="mobile-drawer-close"
+                aria-label="Close sort drawer"
               >
                 <X size={20} />
               </button>
@@ -336,19 +705,17 @@ export function ShopClient({
                   { id: "featured", label: "Featured & Bestsellers" },
                   { id: "newest", label: "Newest Arrivals" },
                   { id: "price-asc", label: "Price: Low to High" },
-                  { id: "price-desc", label: "Price: High to Low" }
+                  { id: "price-desc", label: "Price: High to Low" },
+                  { id: "name-asc", label: "Product Name (A - Z)" }
                 ].map((opt) => (
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => {
-                      setSortBy(opt.id as any);
-                      setSortModalOpen(false);
-                    }}
+                    onClick={() => handleSortChange(opt.id)}
                     className={`drawer-sort-option ${sortBy === opt.id ? "selected" : ""}`}
                   >
                     <span>{opt.label}</span>
-                    {sortBy === opt.id && <Check size={16} color="#3A4B37" />}
+                    {sortBy === opt.id && <Check size={16} color="#354232" />}
                   </button>
                 ))}
               </div>

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-17T19:57:31.213Z",
+  "updatedAt": "2026-08-18T13:51:42.462Z",
   "items": [
     {
       "id": "nav-collections",
@@ -114,13 +114,7 @@
           "label": "Zari & Brocade",
           "href": "/category/suits?fabric=zari"
         }
-      ],
-      "promoCard": {
-        "badge": "BESTSELLER",
-        "title": "Indigo Pleat Anarkali",
-        "description": "Pure Chanderi silk with artisan pleats and gold hand-block details.",
-        "href": "/product/indigo-pleat-anarkali-suit"
-      }
+      ]
     },
     {
       "id": "nav-kurtis",

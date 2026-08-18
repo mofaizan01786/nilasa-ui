@@ -534,7 +534,7 @@ export default function AccountPage() {
                     <input
                       type="password"
                       required
-                      placeholder="••••••••"
+                      placeholder="Enter current password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       style={{
@@ -556,7 +556,7 @@ export default function AccountPage() {
                     <input
                       type="password"
                       required
-                      placeholder="••••••••"
+                      placeholder="Enter new password (8+ chars)"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       style={{
@@ -578,7 +578,7 @@ export default function AccountPage() {
                     <input
                       type="password"
                       required
-                      placeholder="••••••••"
+                      placeholder="Confirm new password"
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
                       style={{

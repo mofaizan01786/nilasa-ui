@@ -72,6 +72,7 @@ const customServerJs = `const http = require('http');
 const path = require('path');
 
 process.env.NODE_ENV = 'production';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 process.chdir(__dirname);
 
 // Dynamic port (supports named pipe from iisnode on SmarterASP.NET or integer port)

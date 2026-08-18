@@ -19,24 +19,35 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
-  const product = await fetchProductBySlug(slug);
-  if (!product) return {};
+  try {
+    const resolvedParams = await Promise.resolve(params);
+    const slug = resolvedParams?.slug;
+    if (!slug) return {};
 
-  const url = `https://nilasawear.com/product/${product.slug}`;
-  const image = getProductImage(product);
-
-  return {
-    title: `${product.name} | Nilasa`,
-    description: product.description || `Shop the ${product.name} from Nilasa's modern womenswear collection.`,
-    alternates: { canonical: url },
-    openGraph: {
-      title: `${product.name} | Nilasa`,
-      description: product.description || `Shop the ${product.name}.`,
-      url,
-      images: [{ url: image, alt: product.name }]
+    let product = await fetchProductBySlug(slug);
+    if (!product) {
+      const all = await fetchPublishedProducts();
+      product = all.find((p) => p.slug === slug || encodeURIComponent(p.slug) === slug) || null;
     }
-  };
+    if (!product) return {};
+
+    const url = `https://nilasawear.com/product/${product.slug}`;
+    const image = getProductImage(product);
+
+    return {
+      title: `${product.name} | Nilasa`,
+      description: product.description || `Shop the ${product.name} from Nilasa's modern womenswear collection.`,
+      alternates: { canonical: url },
+      openGraph: {
+        title: `${product.name} | Nilasa`,
+        description: product.description || `Shop the ${product.name}.`,
+        url,
+        images: [{ url: image, alt: product.name }]
+      }
+    };
+  } catch {
+    return {};
+  }
 }
 
 export default async function ProductPage({
@@ -44,8 +55,15 @@ export default async function ProductPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
-  const product = await fetchProductBySlug(slug);
+  const resolvedParams = await Promise.resolve(params);
+  const slug = resolvedParams?.slug;
+  if (!slug) notFound();
+
+  let product = await fetchProductBySlug(slug);
+  if (!product) {
+    const all = await fetchPublishedProducts();
+    product = all.find((p) => p.slug === slug || encodeURIComponent(p.slug) === slug) || null;
+  }
   if (!product) notFound();
 
   const mainImage = getProductImage(product);
@@ -66,7 +84,7 @@ export default async function ProductPage({
   };
 
   return (
-    <main className="shell shop-page-container" style={{ paddingTop: 40, paddingBottom: 100 }}>
+    <main className="shell shop-page-container" style={{ paddingTop: "clamp(16px, 3vw, 32px)", paddingBottom: "clamp(40px, 6vw, 80px)" }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -82,7 +100,7 @@ export default async function ProductPage({
         </section>
 
         <section className="product-info">
-          <p className="breadcrumb" style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--ink-muted)", marginBottom: 12 }}>
+          <p className="breadcrumb" style={{ fontFamily: "var(--font-body)", fontSize: "0.78rem", color: "var(--ink-muted)", marginBottom: 12 }}>
             <Link href="/">Home</Link> / <Link href="/shop">Shop</Link> / <span>{product.name}</span>
           </p>
 

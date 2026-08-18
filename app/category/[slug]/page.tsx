@@ -15,16 +15,22 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
-  const categories = await fetchCategories();
-  const category = categories.find((c) => c.slug === slug);
-  if (!category) return {};
+  try {
+    const resolvedParams = await Promise.resolve(params);
+    const slug = resolvedParams?.slug;
+    if (!slug) return {};
+    const categories = await fetchCategories();
+    const category = categories.find((c) => c.slug === slug);
+    if (!category) return {};
 
-  return {
-    title: `${category.name} | Nilasa`,
-    description: category.description || `Explore ${category.name} from Nilasa's modern ethnic womenswear collection.`,
-    alternates: { canonical: `https://nilasawear.com/category/${category.slug}` }
-  };
+    return {
+      title: `${category.name} | Nilasa`,
+      description: category.description || `Explore ${category.name} from Nilasa's modern ethnic womenswear collection.`,
+      alternates: { canonical: `https://nilasawear.com/category/${category.slug}` }
+    };
+  } catch {
+    return {};
+  }
 }
 
 export default async function CategoryPage({
@@ -32,7 +38,10 @@ export default async function CategoryPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  const resolvedParams = await Promise.resolve(params);
+  const slug = resolvedParams?.slug;
+  if (!slug) notFound();
+
   const [categories, allProducts] = await Promise.all([
     fetchCategories(),
     fetchPublishedProducts()
