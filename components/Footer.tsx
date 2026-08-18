@@ -1,186 +1,147 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import {
-  MapPin,
-  Phone,
-  Mail,
-  ShieldCheck,
-  Truck,
-  RotateCcw,
-  Check,
-  ArrowRight
-} from "lucide-react";
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 export function Footer() {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSubscribed(true);
-  };
+  const [langOpen, setLangOpen] = useState(false);
 
   return (
-    <footer className="footer">
-      {/* 1. Value Props Strip */}
-      <div className="footer-props-strip">
-        <div className="shell footer-props-grid">
-          <div className="footer-prop-item">
-            <div className="footer-prop-icon">
-              <Truck size={20} />
-            </div>
-            <div>
-              <strong>Complimentary Shipping</strong>
-              <span>Pan-India express air delivery</span>
-            </div>
+    <footer className="nilasa-footer" aria-label="Site Footer">
+      <div className="nilasa-footer__inner shell">
+        {/* 1. 4-Column Links & Info Grid */}
+        <div className="nilasa-footer__grid">
+          {/* Col 1: PRODUCTS */}
+          <div className="nilasa-footer__col">
+            <h4 className="nilasa-footer__heading">PRODUCTS</h4>
+            <ul className="nilasa-footer__links">
+              <li><Link href="/category/suits">Suits & Anarkalis</Link></li>
+              <li><Link href="/category/kurtis">Chanderi Kurtis</Link></li>
+              <li><Link href="/category/co-ord-sets">Linen Co-Ord Sets</Link></li>
+              <li><Link href="/category/dupattas">Pure Silk Dupattas</Link></li>
+              <li><Link href="/category/unstitched-suits">Unstitched Fabrics</Link></li>
+              <li><Link href="/category/lehengas">Festive Lehengas</Link></li>
+            </ul>
           </div>
 
-          <div className="footer-prop-item">
-            <div className="footer-prop-icon">
-              <RotateCcw size={20} />
-            </div>
-            <div>
-              <strong>7-Day Easy Returns</strong>
-              <span>Hassle-free exchange guarantee</span>
-            </div>
+          {/* Col 2: SERVICE */}
+          <div className="nilasa-footer__col">
+            <h4 className="nilasa-footer__heading">SERVICE</h4>
+            <ul className="nilasa-footer__links">
+              <li><Link href="/faq">FAQ</Link></li>
+              <li><Link href="/contact">Contact Us</Link></li>
+              <li><Link href="/account">Track Your Order</Link></li>
+              <li><Link href="/size-guide">Size Guide</Link></li>
+              <li><Link href="/fabric-care">Fabric & Care</Link></li>
+            </ul>
           </div>
 
-          <div className="footer-prop-item">
-            <div className="footer-prop-icon">
-              <ShieldCheck size={20} />
-            </div>
-            <div>
-              <strong>100% Authentic Handcrafted</strong>
-              <span>Inspected master artisan craft</span>
-            </div>
+          {/* Col 3: INFORMATION */}
+          <div className="nilasa-footer__col">
+            <h4 className="nilasa-footer__heading">INFORMATION</h4>
+            <ul className="nilasa-footer__links">
+              <li><Link href="/about">About Us</Link></li>
+              <li><Link href="/shipping-returns">Return and Refunds</Link></li>
+              <li><Link href="/shipping-returns">Shipping Policy</Link></li>
+              <li><Link href="/terms-of-service">Legal Area</Link></li>
+              <li><Link href="/privacy-policy">Privacy Policy</Link></li>
+            </ul>
           </div>
-        </div>
-      </div>
 
-      {/* 2. Main Footer Grid */}
-      <div className="shell footer-grid">
-        {/* Col 1: Brand & Contact Identity */}
-        <div className="footer-col footer-col-brand">
-          <Link href="/" className="footer-brand-anchor" aria-label="Nilasa Home">
-            <Image
-              src="/nilasa-crest-logo.png"
-              alt="Nilasa - Grace In Every Thread"
-              width={200}
-              height={70}
-              className="footer-brand-logo-img"
-              unoptimized
-            />
-          </Link>
-          <p className="footer-desc">
-            Modern Indian ethnic wear designed with quiet confidence. Handcrafted Chanderi silks, zari woven suit sets, and timeless separates.
-          </p>
-
-          <div className="footer-contact-list">
-            <div className="footer-contact-row">
-              <MapPin size={15} className="footer-icon-gold" />
-              <span>Civil Lines, Kanpur, Uttar Pradesh, India</span>
-            </div>
-            <a href="tel:+919336114583" className="footer-contact-row footer-contact-link">
-              <Phone size={15} className="footer-icon-gold" />
-              <span>+91 93361 14583</span>
-            </a>
-            <a href="mailto:nilasawear@gmail.com" className="footer-contact-row footer-contact-link">
-              <Mail size={15} className="footer-icon-gold" />
-              <span>nilasawear@gmail.com</span>
-            </a>
-            <a
-              href="https://instagram.com/nilasa.wear"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="footer-contact-row footer-contact-link"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="footer-icon-gold">
-                <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-              </svg>
-              <span>@nilasa.wear</span>
-            </a>
+          {/* Col 4: ABOUT US */}
+          <div className="nilasa-footer__col nilasa-footer__col-about">
+            <h4 className="nilasa-footer__heading">ABOUT US</h4>
+            <p className="nilasa-footer__about-text">
+              Nilasa is an Indian ethnic couture atelier rooted in the textile heritage of Northern India. Every piece is handcrafted with pure Chanderi silk, master zari weaves, and designed for effortless quiet luxury.
+            </p>
           </div>
         </div>
 
-        {/* Col 2: Collections */}
-        <div className="footer-col">
-          <h4 className="footer-heading">Collections</h4>
-          <ul className="footer-links">
-            <li><Link href="/shop">Shop All Pieces</Link></li>
-            <li><Link href="/category/suits">Suits & Anarkalis</Link></li>
-            <li><Link href="/category/kurtis">Chanderi Kurtis</Link></li>
-            <li><Link href="/category/co-ord-sets">Linen Co-Ord Sets</Link></li>
-            <li><Link href="/category/unstitched-suits">Unstitched Dress Material</Link></li>
-            <li><Link href="/category/dupattas">Handloom Zari Dupattas</Link></li>
-          </ul>
-        </div>
-
-        {/* Col 3: Customer Care & Services */}
-        <div className="footer-col">
-          <h4 className="footer-heading">Customer Care</h4>
-          <ul className="footer-links">
-            <li><Link href="/account">My Account & Orders</Link></li>
-            <li><Link href="/cart">Shopping Bag</Link></li>
-            <li><Link href="/checkout">Express Checkout</Link></li>
-            <li><Link href="/shipping-returns">Shipping & Returns</Link></li>
-            <li><Link href="/terms-of-service">Terms of Sale</Link></li>
-            <li><Link href="/privacy-policy">Privacy Policy</Link></li>
-          </ul>
-        </div>
-
-        {/* Col 4: Nilasa Club & Newsletter */}
-        <div className="footer-col footer-col-club">
-          <h4 className="footer-heading">Nilasa Club</h4>
-          <p className="footer-desc">
-            Subscribe for private access to new collection drops, festive previews, and exclusive codes.
-          </p>
-
-          {subscribed ? (
-            <div className="footer-subscribe-success">
-              <Check size={16} color="#10B981" />
-              <span>Welcome to Nilasa Club. Check your inbox for your 10% welcome code.</span>
-            </div>
-          ) : (
-            <form onSubmit={handleSubscribe} className="newsletter-form">
-              <input
-                type="email"
-                placeholder="Enter your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="newsletter-input"
-                required
-                aria-label="Email address for Nilasa Club newsletter"
-              />
-              <button type="submit" className="newsletter-btn" aria-label="Subscribe to newsletter">
-                <span>Join</span>
-                <ArrowRight size={13} />
+        {/* 2. Utility Row: Region/Socials on Left, Payment Icons on Right */}
+        <div className="nilasa-footer__utility-row">
+          <div className="nilasa-footer__left-utils">
+            {/* Region / Language Dropdown */}
+            <div className="nilasa-footer__lang">
+              <button
+                type="button"
+                className="nilasa-footer__lang-btn"
+                onClick={() => setLangOpen((p) => !p)}
+                aria-label="Language selector"
+              >
+                <span>EN</span>
+                <ChevronDown size={13} />
               </button>
-            </form>
-          )}
+            </div>
 
-          <div className="footer-payment-safe">
-            <span className="footer-safe-tag">256-Bit SSL Encrypted Checkout</span>
-            <span className="footer-safe-methods">UPI • Visa • Mastercard • RuPay • NetBanking • COD</span>
+            {/* Social Icons */}
+            <div className="nilasa-footer__socials">
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="nilasa-social-icon"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                </svg>
+              </a>
+              <a
+                href="https://x.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="X Twitter"
+                className="nilasa-social-icon"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
+              <a
+                href="https://instagram.com/nilasa.wear"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="nilasa-social-icon"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                  <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+                </svg>
+              </a>
+              <a
+                href="https://pinterest.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Pinterest"
+                className="nilasa-social-icon"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2a10 10 0 0 0-3.66 19.31c-.05-.44-.09-1.12.02-1.6l.8-3.38s-.2-.41-.2-1.02c0-.96.56-1.68 1.25-1.68.59 0 .87.44.87.97 0 .59-.38 1.48-.57 2.3-.16.7.35 1.27 1.04 1.27 1.25 0 2.22-1.32 2.22-3.22 0-1.68-1.21-2.86-2.94-2.86-2.14 0-3.4 1.6-3.4 3.26 0 .65.25 1.34.56 1.72a.23.23 0 0 1 .05.22c-.06.26-.2.8-.23.91-.04.14-.13.17-.3.09-1.1-.51-1.78-2.12-1.78-3.41 0-2.77 2.01-5.32 5.8-5.32 3.05 0 5.41 2.17 5.41 5.07 0 3.03-1.91 5.46-4.56 5.46-.89 0-1.73-.46-2.02-1l-.55 2.1c-.2.77-.74 1.73-1.1 2.32A10 10 0 1 0 12 2z" />
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          {/* Payment Method Badges */}
+          <div className="nilasa-footer__payments" aria-label="Accepted payment methods">
+            <span className="nilasa-payment-pill">VISA</span>
+            <span className="nilasa-payment-pill">Mastercard</span>
+            <span className="nilasa-payment-pill">AMEX</span>
+            <span className="nilasa-payment-pill">UPI</span>
+            <span className="nilasa-payment-pill">GPay</span>
+            <span className="nilasa-payment-pill">RuPay</span>
           </div>
         </div>
       </div>
 
-      {/* 3. Footer Bottom Bar */}
-      <div className="footer-bottom-container">
-        <div className="shell footer-bottom">
-          <p>© {new Date().getFullYear()} NILASA WEAR. All Rights Reserved. Crafted with grace in India.</p>
-          <div className="footer-bottom-links">
-            <Link href="/terms-of-service">Terms of Sale</Link>
-            <Link href="/privacy-policy">Privacy Policy</Link>
-            <Link href="/shipping-returns">Shipping & Returns</Link>
-          </div>
-        </div>
+      {/* 3. Giant Nilasa Bottom Brand Wordmark */}
+      <div className="nilasa-footer__wordmark-wrap" aria-hidden="true">
+        <span className="nilasa-footer__wordmark">
+          NILASA
+        </span>
       </div>
     </footer>
   );

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Playfair_Display, Open_Sans, JetBrains_Mono } from "next/font/google";
+import { Playfair_Display, Open_Sans, Outfit, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/components/CartProvider";
 import { WishlistProvider } from "@/components/WishlistProvider";
@@ -16,6 +16,14 @@ const openSans = Open_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-open-sans",
+  display: "swap",
+  preload: true
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-outfit",
   display: "swap",
   preload: true
 });
@@ -54,7 +62,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${playfairDisplay.variable} ${openSans.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${playfairDisplay.variable} ${outfit.variable} ${openSans.variable} ${jetbrainsMono.variable}`}>
       <body>
         <WishlistProvider>
           <CartProvider>

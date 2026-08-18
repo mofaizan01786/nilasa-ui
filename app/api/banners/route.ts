@@ -47,7 +47,7 @@ const DEFAULT_BANNERS: BannersConfig = {
     code: "NILASA10",
     ctaLabel: "Claim Offer →",
     ctaHref: "/shop",
-    imageUrl: "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1000&q=85"
+    imageUrl: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1200&q=90"
   }
 };
 

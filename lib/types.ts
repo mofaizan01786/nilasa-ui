@@ -93,6 +93,7 @@ export interface Category {
   id?: number;
   description?: string;
   productCount?: number;
+  imageUrl?: string;
   createdAt?: string;
 }
 
@@ -373,4 +374,5 @@ export interface BannersConfig {
   announcementBar: AnnouncementBarConfig;
   heroBanner: HeroBannerConfig;
   promotionalOfferBanner: PromotionalOfferBannerConfig;
+  marqueeHighlights?: string[];
 }
