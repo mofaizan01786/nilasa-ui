@@ -25,10 +25,10 @@ export default function CartPage() {
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
             <ShoppingBag size={54} color="var(--nilasa-gold)" strokeWidth={1.5} />
           </div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", color: "var(--nilasa-indigo)", margin: "0 0 10px" }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "var(--fs-h2)", color: "var(--nilasa-indigo)", margin: "0 0 10px" }}>
             Your Shopping Bag is Empty
           </h2>
-          <p style={{ color: "var(--ink-muted)", fontSize: "1rem", maxWidth: 460, margin: "0 auto 28px" }}>
+          <p style={{ color: "var(--ink-muted)", fontSize: "var(--fs-body-base)", maxWidth: 460, margin: "0 auto 28px" }}>
             Explore our curated collections of modern suits, kurtis, co-ord sets, dupattas, and lehengas.
           </p>
 

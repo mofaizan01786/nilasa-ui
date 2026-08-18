@@ -19,7 +19,7 @@ export default function ShippingReturnsPage() {
           <h1
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "36px",
+              fontSize: "var(--fs-h2)",
               fontWeight: 600,
               color: "var(--nilasa-indigo)",
               margin: "0 0 10px 0"
@@ -27,7 +27,7 @@ export default function ShippingReturnsPage() {
           >
             Shipping & Returns Policy
           </h1>
-          <p style={{ fontSize: "14px", color: "var(--ink-muted)", margin: 0 }}>
+          <p style={{ fontSize: "var(--fs-body-sm)", color: "var(--ink-muted)", margin: 0 }}>
             Enjoy complimentary express shipping across India & transparent 7-day returns on all ethnic wear.
           </p>
         </div>

@@ -49,10 +49,10 @@ export default async function CategoryPage({
     <main className="shell" style={{ paddingTop: 40, paddingBottom: 100 }}>
       <header className="page-title" style={{ marginBottom: 40 }}>
         <span className="eyebrow eyebrow--gold">CATEGORY</span>
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "3rem", color: "var(--nilasa-indigo)", margin: "8px 0" }}>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "var(--fs-h2)", color: "var(--nilasa-indigo)", margin: "8px 0" }}>
           {category.name}
         </h1>
-        <p style={{ color: "var(--ink-muted)", fontSize: "1.05rem", maxWidth: 600 }}>
+        <p style={{ color: "var(--ink-muted)", fontSize: "var(--fs-body-lead)", maxWidth: 600 }}>
           {category.description || `Handcrafted ${category.name} cut for elegance and comfort.`}
         </p>
       </header>

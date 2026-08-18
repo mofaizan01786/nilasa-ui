@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
           <h1
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "36px",
+              fontSize: "var(--fs-h2)",
               fontWeight: 600,
               color: "var(--nilasa-indigo)",
               margin: "0 0 10px 0"
@@ -27,7 +27,7 @@ export default function PrivacyPolicyPage() {
           >
             Privacy Policy
           </h1>
-          <p style={{ fontSize: "14px", color: "var(--ink-muted)", margin: 0 }}>
+          <p style={{ fontSize: "var(--fs-body-sm)", color: "var(--ink-muted)", margin: 0 }}>
             Last Updated: August 2026 • Governed by the Information Technology Act, 2000 & DPDP Act, 2023.
           </p>
         </div>

@@ -1,12 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Work_Sans, Space_Mono } from "next/font/google";
+import { Playfair_Display, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/components/CartProvider";
 import { LayoutWrapper } from "@/components/LayoutWrapper";
 
-const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-display" });
-const workSans = Work_Sans({ subsets: ["latin"], variable: "--font-body" });
-const spaceMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-mono" });
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap"
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap"
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-mono",
+  display: "swap"
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -34,7 +49,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${workSans.variable} ${spaceMono.variable}`}>
+    <html lang="en" className={`${playfairDisplay.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
         <CartProvider>
           <LayoutWrapper>{children}</LayoutWrapper>

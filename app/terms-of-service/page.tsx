@@ -19,7 +19,7 @@ export default function TermsOfServicePage() {
           <h1
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "36px",
+              fontSize: "var(--fs-h2)",
               fontWeight: 600,
               color: "var(--nilasa-indigo)",
               margin: "0 0 10px 0"
@@ -27,7 +27,7 @@ export default function TermsOfServicePage() {
           >
             Terms of Service
           </h1>
-          <p style={{ fontSize: "14px", color: "var(--ink-muted)", margin: 0 }}>
+          <p style={{ fontSize: "var(--fs-body-sm)", color: "var(--ink-muted)", margin: 0 }}>
             Last Updated: August 2026 • Welcome to Nilasa Wear. Please read these terms carefully before placing an order.
           </p>
         </div>
