@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { NilasaParallaxCard } from "@/components/NilasaParallaxCard";
+import { NilasaScrollReveal } from "@/components/NilasaScrollReveal";
 
 interface StoryCard {
   id: string;
@@ -40,28 +42,41 @@ export function NilasaStorySlider({ stories = DEFAULT_STORIES }: { stories?: Sto
   return (
     <section className="nilasa-multicol-section shell" aria-label="Curated Fashion Stories">
       <div className="nilasa-multicol-grid">
-        {stories.map((story) => (
-          <Link key={story.id} href={story.href} className="nilasa-multicol-card">
-            <div className="nilasa-multicol-card__media">
-              <Image
-                src={story.imageUrl}
-                alt={story.headline}
-                fill
-                sizes="(max-width: 768px) 100vw, 33vw"
-                className="nilasa-multicol-card__img"
-              />
-              <div className="nilasa-multicol-card__overlay" />
-            </div>
+        {stories.map((story, idx) => (
+          <NilasaScrollReveal
+            key={story.id}
+            animation="fade-up"
+            delay={idx * 150}
+            duration={850}
+          >
+            <NilasaParallaxCard
+              as={Link}
+              href={story.href}
+              maxTilt={7}
+              scale={1.02}
+              className="nilasa-multicol-card"
+            >
+              <div className="nilasa-multicol-card__media">
+                <Image
+                  src={story.imageUrl}
+                  alt={story.headline}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="nilasa-multicol-card__img"
+                />
+                <div className="nilasa-multicol-card__overlay" />
+              </div>
 
-            <div className="nilasa-multicol-card__content">
-              <span className="nilasa-multicol-card__tag">{story.tag}</span>
-              <h3 className="nilasa-multicol-card__title">{story.headline}</h3>
-              <span className="nilasa-multicol-card__link">
-                <span>Check Now</span>
-                <ArrowRight size={14} />
-              </span>
-            </div>
-          </Link>
+              <div className="nilasa-multicol-card__content">
+                <span className="nilasa-multicol-card__tag">{story.tag}</span>
+                <h3 className="nilasa-multicol-card__title">{story.headline}</h3>
+                <span className="nilasa-multicol-card__link">
+                  <span>Check Now</span>
+                  <ArrowRight size={14} />
+                </span>
+              </div>
+            </NilasaParallaxCard>
+          </NilasaScrollReveal>
         ))}
       </div>
     </section>

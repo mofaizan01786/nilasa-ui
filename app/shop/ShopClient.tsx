@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Product, Category, FilterOptions, ProductFilterParams } from "@/lib/types";
@@ -97,6 +98,23 @@ export function ShopClient({
   // Modals
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Lock background scroll when drawer is open
+  useEffect(() => {
+    if (filterDrawerOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [filterDrawerOpen]);
 
   // Load available filter options
   useEffect(() => {
@@ -405,8 +423,8 @@ export function ShopClient({
         )}
       </div>
 
-      {/* 5. Sleek Slide-Out Filter Drawer */}
-      {filterDrawerOpen && (
+      {/* 5. Sleek Slide-Out Filter Drawer (Portaled directly to document.body) */}
+      {filterDrawerOpen && mounted && createPortal(
         <div className="nilasa-drawer-backdrop" onClick={() => setFilterDrawerOpen(false)}>
           <aside className="nilasa-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="nilasa-drawer__head">
@@ -528,7 +546,8 @@ export function ShopClient({
               </button>
             </div>
           </aside>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

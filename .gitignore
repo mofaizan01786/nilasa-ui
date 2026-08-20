@@ -20,6 +20,7 @@ node_modules
 .DS_Store
 *.pem
 Thumbs.db
+*.exe
 
 # debug
 npm-debug.log*

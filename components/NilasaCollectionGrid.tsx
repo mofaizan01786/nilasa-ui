@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Category } from "@/lib/types";
+import { NilasaParallaxCard } from "@/components/NilasaParallaxCard";
+import { NilasaScrollReveal } from "@/components/NilasaScrollReveal";
 
 const CATEGORY_IMAGES: Record<string, string> = {
   suits: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80",
@@ -18,42 +20,53 @@ export function NilasaCollectionGrid({ categories }: { categories: Category[] })
 
   return (
     <section className="nilasa-collections shell" aria-label="Collections Grid">
-      <div className="nilasa-collections__head">
-        <h2 className="nilasa-collections__title">
-          Explore this season’s newest collections
-        </h2>
-        <Link href="/shop" className="nilasa-link-underline">
-          View All Categories
-        </Link>
-      </div>
+      <NilasaScrollReveal animation="fade-up" duration={700}>
+        <div className="nilasa-collections__head">
+          <h2 className="nilasa-collections__title">
+            Explore this season’s newest collections
+          </h2>
+          <Link href="/shop" className="nilasa-link-underline">
+            View All Categories
+          </Link>
+        </div>
+      </NilasaScrollReveal>
 
       <div className="nilasa-collections__grid">
-        {categories.slice(0, 6).map((cat) => {
+        {categories.slice(0, 6).map((cat, idx) => {
           const imgUrl =
             cat.imageUrl ||
             CATEGORY_IMAGES[cat.slug] ||
             "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80";
 
           return (
-            <Link
+            <NilasaScrollReveal
               key={cat.id || cat.slug}
-              href={`/category/${cat.slug}`}
-              className="nilasa-collection-card"
+              animation="fade-up"
+              delay={idx * 80}
+              duration={750}
             >
-              <div className="nilasa-collection-card__media">
-                <Image
-                  src={imgUrl}
-                  alt={cat.name}
-                  fill
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
-                  className="nilasa-collection-card__image"
-                />
-              </div>
-              <h3 className="nilasa-collection-card__name">{cat.name}</h3>
-              <span className="nilasa-collection-card__count">
-                {cat.productCount ? `${cat.productCount} Products` : "Explore Edit"}
-              </span>
-            </Link>
+              <NilasaParallaxCard
+                as={Link}
+                href={`/category/${cat.slug}`}
+                maxTilt={6}
+                scale={1.025}
+                className="nilasa-collection-card"
+              >
+                <div className="nilasa-collection-card__media">
+                  <Image
+                    src={imgUrl}
+                    alt={cat.name}
+                    fill
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+                    className="nilasa-collection-card__image"
+                  />
+                </div>
+                <h3 className="nilasa-collection-card__name">{cat.name}</h3>
+                <span className="nilasa-collection-card__count">
+                  {cat.productCount ? `${cat.productCount} Products` : "Explore Edit"}
+                </span>
+              </NilasaParallaxCard>
+            </NilasaScrollReveal>
           );
         })}
       </div>

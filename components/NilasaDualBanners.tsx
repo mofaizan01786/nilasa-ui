@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { NilasaParallaxCard } from "@/components/NilasaParallaxCard";
+import { NilasaScrollReveal } from "@/components/NilasaScrollReveal";
 
 interface DualBannerItem {
   eyebrow: string;
@@ -30,25 +32,36 @@ export function NilasaDualBanners({ banners = DEFAULT_BANNERS }: { banners?: [Du
     <section className="nilasa-dual-banners shell" aria-label="Featured Collection Banners">
       <div className="nilasa-dual-banners__grid">
         {banners.map((item, idx) => (
-          <div key={idx} className="nilasa-dual-card">
-            <div className="nilasa-dual-card__media">
-              <Image
-                src={item.imageUrl}
-                alt={item.eyebrow}
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="nilasa-dual-card__image"
-              />
-              <div className="nilasa-dual-card__overlay" />
-            </div>
+          <NilasaScrollReveal
+            key={idx}
+            animation={idx === 0 ? "fade-right" : "fade-left"}
+            delay={idx * 150}
+            duration={900}
+          >
+            <NilasaParallaxCard
+              maxTilt={5}
+              scale={1.015}
+              className="nilasa-dual-card"
+            >
+              <div className="nilasa-dual-card__media">
+                <Image
+                  src={item.imageUrl}
+                  alt={item.eyebrow}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="nilasa-dual-card__image"
+                />
+                <div className="nilasa-dual-card__overlay" />
+              </div>
 
-            <div className="nilasa-dual-card__content">
-              <p className="nilasa-dual-card__eyebrow">{item.eyebrow}</p>
-              <Link href={item.href} className="nilasa-dual-card__link">
-                <span>{item.ctaText}</span>
-              </Link>
-            </div>
-          </div>
+              <div className="nilasa-dual-card__content">
+                <p className="nilasa-dual-card__eyebrow">{item.eyebrow}</p>
+                <Link href={item.href} className="nilasa-dual-card__link">
+                  <span>{item.ctaText}</span>
+                </Link>
+              </div>
+            </NilasaParallaxCard>
+          </NilasaScrollReveal>
         ))}
       </div>
     </section>

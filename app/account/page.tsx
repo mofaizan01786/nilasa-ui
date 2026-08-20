@@ -12,14 +12,14 @@ import {
   ShoppingBag,
   Lock,
   LogOut,
-  MapPin,
   Mail,
   Phone,
   Calendar,
   CheckCircle2,
   AlertCircle,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  ChevronRight
 } from "lucide-react";
 
 export default function AccountPage() {
@@ -103,73 +103,29 @@ export default function AccountPage() {
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ color: "var(--ink-muted)", fontSize: "14px" }}>Loading account details...</p>
+      <div className="nilasa-account-page shell" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "#64748B", fontSize: "14px" }}>Loading account details...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "80vh", padding: "40px 0 80px" }}>
+    <div className="nilasa-account-page">
       <div className="shell">
         {/* Account Header Banner */}
-        <div
-          style={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid var(--nilasa-border)",
-            borderRadius: 12,
-            padding: "24px 28px",
-            marginBottom: 24,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 16
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: "50%",
-                backgroundColor: "var(--nilasa-card)",
-                border: "1px solid var(--nilasa-border)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0
-              }}
-            >
-              <User size={24} color="var(--nilasa-gold)" />
+        <div className="nilasa-account-header">
+          <div className="nilasa-account-user-meta">
+            <div className="nilasa-account-avatar">
+              <User size={24} />
             </div>
             <div>
-              <h1
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "22px",
-                  fontWeight: 600,
-                  color: "var(--nilasa-indigo)",
-                  margin: "0 0 4px 0"
-                }}
-              >
-                Welcome back, {user?.name}
+              <h1 className="nilasa-account-name">
+                Welcome back, {user?.name || "Customer"}
               </h1>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "13px", color: "var(--ink-muted)" }}>
+              <div className="nilasa-account-subinfo">
                 <span>{user?.email}</span>
                 <span>•</span>
-                <span
-                  style={{
-                    backgroundColor: "var(--nilasa-card)",
-                    color: "var(--nilasa-gold)",
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em"
-                  }}
-                >
+                <span className="nilasa-account-tier-badge">
                   Nilasa Club Member
                 </span>
               </div>
@@ -177,136 +133,64 @@ export default function AccountPage() {
           </div>
 
           <button
+            type="button"
             onClick={handleLogout}
-            style={{
-              backgroundColor: "transparent",
-              color: "var(--status-danger)",
-              border: "1px solid #F8C8C3",
-              borderRadius: 6,
-              padding: "8px 14px",
-              fontSize: "13px",
-              fontWeight: 500,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              cursor: "pointer"
-            }}
+            className="nilasa-account-logout-btn"
+            aria-label="Sign Out"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
           </button>
         </div>
 
-        {/* Account Tabs & Content Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 24 }}>
-          {/* Navigation Sidebar */}
-          <div
-            style={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid var(--nilasa-border)",
-              borderRadius: 12,
-              padding: "12px",
-              height: "fit-content"
-            }}
-          >
-            <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {/* Account Layout: Tabs Sidebar + Content Panel */}
+        <div className="nilasa-account-layout">
+          {/* Navigation Tabs (Sidebar on Desktop, Segmented 3-Column Bar on Mobile) */}
+          <aside className="nilasa-account-sidebar" aria-label="Account Tabs">
+            <nav className="nilasa-account-nav">
               <button
                 type="button"
                 onClick={() => setActiveTab("orders")}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 6,
-                  border: "none",
-                  backgroundColor: activeTab === "orders" ? "var(--nilasa-card)" : "transparent",
-                  color: activeTab === "orders" ? "var(--nilasa-indigo)" : "var(--ink-muted)",
-                  fontWeight: activeTab === "orders" ? 600 : 500,
-                  fontSize: "13px",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "background-color 0.12s ease"
-                }}
+                className={`nilasa-account-nav-btn ${activeTab === "orders" ? "is-active" : ""}`}
               >
-                <ShoppingBag size={16} color={activeTab === "orders" ? "var(--nilasa-gold)" : "var(--ink-muted)"} />
-                <span>My Orders ({orders.length})</span>
+                <ShoppingBag size={18} color={activeTab === "orders" ? "#7A539B" : "#64748B"} />
+                <span className="tab-label-full">My Orders ({orders.length})</span>
+                <span className="tab-label-mobile">Orders ({orders.length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("profile")}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 6,
-                  border: "none",
-                  backgroundColor: activeTab === "profile" ? "var(--nilasa-card)" : "transparent",
-                  color: activeTab === "profile" ? "var(--nilasa-indigo)" : "var(--ink-muted)",
-                  fontWeight: activeTab === "profile" ? 600 : 500,
-                  fontSize: "13px",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "background-color 0.12s ease"
-                }}
+                className={`nilasa-account-nav-btn ${activeTab === "profile" ? "is-active" : ""}`}
               >
-                <User size={16} color={activeTab === "profile" ? "var(--nilasa-gold)" : "var(--ink-muted)"} />
-                <span>Profile & Details</span>
+                <User size={18} color={activeTab === "profile" ? "#7A539B" : "#64748B"} />
+                <span className="tab-label-full">Profile & Details</span>
+                <span className="tab-label-mobile">Profile</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("security")}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 6,
-                  border: "none",
-                  backgroundColor: activeTab === "security" ? "var(--nilasa-card)" : "transparent",
-                  color: activeTab === "security" ? "var(--nilasa-indigo)" : "var(--ink-muted)",
-                  fontWeight: activeTab === "security" ? 600 : 500,
-                  fontSize: "13px",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "background-color 0.12s ease"
-                }}
+                className={`nilasa-account-nav-btn ${activeTab === "security" ? "is-active" : ""}`}
               >
-                <Lock size={16} color={activeTab === "security" ? "var(--nilasa-gold)" : "var(--ink-muted)"} />
-                <span>Security & Password</span>
+                <Lock size={18} color={activeTab === "security" ? "#7A539B" : "#64748B"} />
+                <span className="tab-label-full">Security & Password</span>
+                <span className="tab-label-mobile">Security</span>
               </button>
             </nav>
-          </div>
+          </aside>
 
-          {/* Main Tab Panel */}
-          <div
-            style={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid var(--nilasa-border)",
-              borderRadius: 12,
-              padding: "28px 30px"
-            }}
-          >
+          {/* Main Tab Content Panel */}
+          <main className="nilasa-account-content-card">
             {/* Tab 1: Orders */}
             {activeTab === "orders" && (
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div className="nilasa-account-content-header">
                   <div>
-                    <h2
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: "20px",
-                        fontWeight: 600,
-                        color: "var(--nilasa-indigo)",
-                        margin: "0 0 4px 0"
-                      }}
-                    >
+                    <h2 className="nilasa-account-section-title">
                       My Purchase History
                     </h2>
-                    <p style={{ fontSize: "13px", color: "var(--ink-muted)", margin: 0 }}>
+                    <p className="nilasa-account-section-subtitle">
                       Track current shipments and view previous Nilasa orders.
                     </p>
                   </div>
@@ -315,88 +199,85 @@ export default function AccountPage() {
                     href="/shop"
                     style={{
                       fontSize: "13px",
-                      color: "var(--nilasa-indigo)",
+                      color: "#7A539B",
                       fontWeight: 600,
-                      textDecoration: "underline"
+                      textDecoration: "underline",
+                      textUnderlineOffset: "4px"
                     }}
                   >
-                    Browse Collections
+                    Browse Collections →
                   </Link>
                 </div>
 
                 {ordersLoading ? (
-                  <p style={{ color: "var(--ink-muted)", fontSize: "13px" }}>Loading your orders...</p>
+                  <p style={{ color: "#64748B", fontSize: "14px" }}>Loading your orders...</p>
                 ) : orders.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "48px 20px" }}>
-                    <ShoppingBag size={38} color="var(--nilasa-gold)" style={{ margin: "0 auto 12px" }} />
-                    <h3 style={{ fontSize: "16px", color: "var(--nilasa-indigo)", margin: "0 0 6px 0" }}>
+                    <ShoppingBag size={42} color="#8E6EA8" style={{ margin: "0 auto 14px" }} />
+                    <h3 style={{ fontSize: "17px", color: "#212121", margin: "0 0 8px 0", fontWeight: 600 }}>
                       No orders placed yet
                     </h3>
-                    <p style={{ fontSize: "13px", color: "var(--ink-muted)", maxWidth: 360, margin: "0 auto 18px" }}>
+                    <p style={{ fontSize: "13px", color: "#64748B", maxWidth: 360, margin: "0 auto 20px", lineHeight: 1.5 }}>
                       Discover our curated collection of handcrafted suits, chanderi kurtis, and silk dupattas.
                     </p>
                     <Link
                       href="/shop"
                       style={{
-                        backgroundColor: "var(--nilasa-indigo)",
+                        backgroundColor: "#212121",
                         color: "#FFFFFF",
-                        borderRadius: 6,
-                        padding: "10px 20px",
+                        borderRadius: 4,
+                        padding: "12px 24px",
                         fontSize: "13px",
                         fontWeight: 600,
                         textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                        display: "inline-block"
+                        letterSpacing: "0.08em",
+                        display: "inline-block",
+                        textDecoration: "none"
                       }}
                     >
                       Start Shopping
                     </Link>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div className="nilasa-account-orders-list">
                     {orders.map((ord) => {
                       const oid = ord.orderId || ord.id || 0;
                       const dateStr = ord.placedAt || ord.createdAt || "";
                       return (
-                        <div
-                          key={oid}
-                          style={{
-                            border: "1px solid var(--nilasa-border)",
-                            borderRadius: 8,
-                            padding: "18px 20px",
-                            backgroundColor: "var(--nilasa-ivory)"
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+                        <div key={oid} className="nilasa-account-order-card">
+                          <div className="nilasa-account-order-card-head">
                             <div>
-                              <strong style={{ fontSize: "15px", color: "var(--nilasa-indigo)" }}>
+                              <div className="nilasa-account-order-id">
                                 Order #{oid}
-                              </strong>
-                              <div style={{ fontSize: "12px", color: "var(--ink-muted)", marginTop: 2 }}>
+                              </div>
+                              <div className="nilasa-account-order-date">
                                 Placed on {dateStr ? new Date(dateStr).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                               </div>
                             </div>
 
-                            <div style={{ textAlign: "right" }}>
-                              <span style={{ fontSize: "16px", fontWeight: 700, color: "var(--nilasa-indigo)" }}>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+                              <span className="nilasa-account-order-total">
                                 {formatPrice(ord.totalAmount)}
                               </span>
-                              <div style={{ marginTop: 4 }}>
-                                <OrderStatusBadge status={ord.status} showStepper />
-                              </div>
+                              <OrderStatusBadge status={ord.status} showStepper />
                             </div>
                           </div>
 
                           {/* Line items summary */}
                           {ord.items && ord.items.length > 0 && (
-                            <div style={{ borderTop: "1px solid var(--nilasa-border)", paddingTop: 12, marginTop: 12 }}>
-                              <span style={{ fontSize: "12px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600 }}>
+                            <div className="nilasa-account-order-items">
+                              <span className="nilasa-account-order-items-title">
                                 Items ({ord.items.length}):
                               </span>
-                              <ul style={{ margin: "6px 0 0 0", paddingLeft: 18, fontSize: "13px", color: "var(--ink-primary)" }}>
+                              <ul className="nilasa-account-order-items-list">
                                 {ord.items.map((it, idx) => (
-                                  <li key={it.orderItemId || idx} style={{ marginBottom: 4 }}>
-                                    {it.productName} ({it.size}) × {it.quantity} — {formatPrice(it.priceAtPurchase * it.quantity)}
+                                  <li key={it.orderItemId || idx} className="nilasa-account-order-item-row">
+                                    <span>
+                                      <strong>{it.productName}</strong> {it.size ? `(${it.size})` : ""} × {it.quantity}
+                                    </span>
+                                    <span style={{ fontWeight: 600, color: "#212121" }}>
+                                      {formatPrice(it.priceAtPurchase * it.quantity)}
+                                    </span>
                                   </li>
                                 ))}
                               </ul>
@@ -413,56 +294,36 @@ export default function AccountPage() {
             {/* Tab 2: Profile */}
             {activeTab === "profile" && (
               <div>
-                <h2
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "20px",
-                    fontWeight: 600,
-                    color: "var(--nilasa-indigo)",
-                    margin: "0 0 4px 0"
-                  }}
-                >
-                  Personal Profile
-                </h2>
-                <p style={{ fontSize: "13px", color: "var(--ink-muted)", margin: "0 0 24px 0" }}>
-                  Your verified identity and contact information at Nilasa.
-                </p>
+                <div className="nilasa-account-content-header">
+                  <div>
+                    <h2 className="nilasa-account-section-title">
+                      Personal Profile
+                    </h2>
+                    <p className="nilasa-account-section-subtitle">
+                      Your verified identity and contact information at Nilasa.
+                    </p>
+                  </div>
+                </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ padding: "16px", backgroundColor: "var(--nilasa-ivory)", borderRadius: 8, border: "1px solid var(--nilasa-border)" }}>
-                    <div style={{ fontSize: "11px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>
-                      Full Name
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--nilasa-indigo)" }}>
-                      {user?.name}
-                    </div>
+                <div className="nilasa-account-profile-grid">
+                  <div className="nilasa-account-profile-box">
+                    <div className="nilasa-account-profile-label">Full Name</div>
+                    <div className="nilasa-account-profile-val">{user?.name || "—"}</div>
                   </div>
 
-                  <div style={{ padding: "16px", backgroundColor: "var(--nilasa-ivory)", borderRadius: 8, border: "1px solid var(--nilasa-border)" }}>
-                    <div style={{ fontSize: "11px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>
-                      Email Address
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--nilasa-indigo)" }}>
-                      {user?.email}
-                    </div>
+                  <div className="nilasa-account-profile-box">
+                    <div className="nilasa-account-profile-label">Email Address</div>
+                    <div className="nilasa-account-profile-val">{user?.email || "—"}</div>
                   </div>
 
-                  <div style={{ padding: "16px", backgroundColor: "var(--nilasa-ivory)", borderRadius: 8, border: "1px solid var(--nilasa-border)" }}>
-                    <div style={{ fontSize: "11px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>
-                      Contact Phone
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--nilasa-indigo)" }}>
-                      {user?.phone || "Not provided"}
-                    </div>
+                  <div className="nilasa-account-profile-box">
+                    <div className="nilasa-account-profile-label">Contact Phone</div>
+                    <div className="nilasa-account-profile-val">{user?.phone || "Not provided"}</div>
                   </div>
 
-                  <div style={{ padding: "16px", backgroundColor: "var(--nilasa-ivory)", borderRadius: 8, border: "1px solid var(--nilasa-border)" }}>
-                    <div style={{ fontSize: "11px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>
-                      Account Role
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--nilasa-indigo)" }}>
-                      {user?.role || "Customer"}
-                    </div>
+                  <div className="nilasa-account-profile-box">
+                    <div className="nilasa-account-profile-label">Account Role</div>
+                    <div className="nilasa-account-profile-val">{user?.role || "Customer"}</div>
                   </div>
                 </div>
               </div>
@@ -471,20 +332,16 @@ export default function AccountPage() {
             {/* Tab 3: Security */}
             {activeTab === "security" && (
               <div>
-                <h2
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "20px",
-                    fontWeight: 600,
-                    color: "var(--nilasa-indigo)",
-                    margin: "0 0 4px 0"
-                  }}
-                >
-                  Security & Password
-                </h2>
-                <p style={{ fontSize: "13px", color: "var(--ink-muted)", margin: "0 0 24px 0" }}>
-                  Ensure your account is protected with a secure password.
-                </p>
+                <div className="nilasa-account-content-header">
+                  <div>
+                    <h2 className="nilasa-account-section-title">
+                      Security & Password
+                    </h2>
+                    <p className="nilasa-account-section-subtitle">
+                      Ensure your account is protected with a secure password.
+                    </p>
+                  </div>
+                </div>
 
                 {passwordSuccess && (
                   <div
@@ -492,7 +349,7 @@ export default function AccountPage() {
                       backgroundColor: "#EDF7F2",
                       color: "#156E45",
                       border: "1px solid #BEE3D1",
-                      padding: "12px 14px",
+                      padding: "12px 16px",
                       borderRadius: 6,
                       fontSize: "13px",
                       display: "flex",
@@ -510,9 +367,9 @@ export default function AccountPage() {
                   <div
                     style={{
                       backgroundColor: "#FDF0EE",
-                      color: "var(--status-danger)",
+                      color: "#DC2626",
                       border: "1px solid #F8C8C3",
-                      padding: "12px 14px",
+                      padding: "12px 16px",
                       borderRadius: 6,
                       fontSize: "13px",
                       display: "flex",
@@ -526,9 +383,9 @@ export default function AccountPage() {
                   </div>
                 )}
 
-                <form onSubmit={handlePasswordChange} style={{ maxWidth: 400, display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-primary)", marginBottom: 6 }}>
+                <form onSubmit={handlePasswordChange} className="nilasa-account-password-form">
+                  <div className="nilasa-account-form-group">
+                    <label className="nilasa-account-form-label">
                       Current Password *
                     </label>
                     <input
@@ -537,20 +394,12 @@ export default function AccountPage() {
                       placeholder="Enter current password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      style={{
-                        width: "100%",
-                        height: 40,
-                        padding: "0 12px",
-                        borderRadius: 6,
-                        border: "1px solid var(--nilasa-border)",
-                        fontSize: "14px",
-                        backgroundColor: "var(--nilasa-ivory)"
-                      }}
+                      className="nilasa-account-form-input"
                     />
                   </div>
 
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-primary)", marginBottom: 6 }}>
+                  <div className="nilasa-account-form-group">
+                    <label className="nilasa-account-form-label">
                       New Password (Min 8 Characters) *
                     </label>
                     <input
@@ -559,20 +408,12 @@ export default function AccountPage() {
                       placeholder="Enter new password (8+ chars)"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      style={{
-                        width: "100%",
-                        height: 40,
-                        padding: "0 12px",
-                        borderRadius: 6,
-                        border: "1px solid var(--nilasa-border)",
-                        fontSize: "14px",
-                        backgroundColor: "var(--nilasa-ivory)"
-                      }}
+                      className="nilasa-account-form-input"
                     />
                   </div>
 
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-primary)", marginBottom: 6 }}>
+                  <div className="nilasa-account-form-group">
+                    <label className="nilasa-account-form-label">
                       Confirm New Password *
                     </label>
                     <input
@@ -581,41 +422,21 @@ export default function AccountPage() {
                       placeholder="Confirm new password"
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      style={{
-                        width: "100%",
-                        height: 40,
-                        padding: "0 12px",
-                        borderRadius: 6,
-                        border: "1px solid var(--nilasa-border)",
-                        fontSize: "14px",
-                        backgroundColor: "var(--nilasa-ivory)"
-                      }}
+                      className="nilasa-account-form-input"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={passwordLoading}
-                    style={{
-                      backgroundColor: "var(--nilasa-indigo)",
-                      color: "#FFFFFF",
-                      border: "none",
-                      borderRadius: 6,
-                      height: 42,
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      letterSpacing: "0.05em",
-                      textTransform: "uppercase",
-                      cursor: passwordLoading ? "not-allowed" : "pointer",
-                      marginTop: 6
-                    }}
+                    className="nilasa-account-submit-btn"
                   >
                     {passwordLoading ? "Updating..." : "Update Password"}
                   </button>
                 </form>
               </div>
             )}
-          </div>
+          </main>
         </div>
       </div>
     </div>
