@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { fetchAllProductsAdmin, fetchOrdersAdmin, fetchCouponsAdmin, fetchUsersAdmin } from "@/lib/api";
+import { readOrders } from "@/lib/orders-store";
 import { formatPrice } from "@/lib/catalog";
 import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
 import {
@@ -16,12 +17,24 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const [products = [], orders = [], coupons = [], users = []] = await Promise.all([
+  const [products = [], backendOrders = [], coupons = [], users = []] = await Promise.all([
     fetchAllProductsAdmin().catch(() => []),
     fetchOrdersAdmin().catch(() => []),
     fetchCouponsAdmin().catch(() => []),
     fetchUsersAdmin().catch(() => [])
   ]);
+
+  const localOrders = readOrders();
+  const orderMap = new Map();
+  for (const o of localOrders) {
+    orderMap.set(o.orderId || o.id, o);
+  }
+  for (const o of backendOrders) {
+    if (!orderMap.has(o.orderId || o.id)) {
+      orderMap.set(o.orderId || o.id, o);
+    }
+  }
+  const orders = Array.from(orderMap.values());
 
   const publishedCount = (products || []).filter((p) => p?.status && String(p.status).toLowerCase() === "published").length;
   const draftCount = (products || []).filter((p) => p?.status && String(p.status).toLowerCase() === "draft").length;

@@ -1,5 +1,52 @@
 [
   {
+    "orderId": 104826,
+    "id": 104826,
+    "orderNumber": "NIL-104826",
+    "userId": 1,
+    "addressId": 104826,
+    "status": "pending",
+    "totalAmount": 12980,
+    "placedAt": "2026-08-20T14:15:58.272Z",
+    "createdAt": "2026-08-20T14:15:58.272Z",
+    "updatedAt": "2026-08-20T14:15:58.272Z",
+    "shippingAddress": {
+      "name": "Mohd Faizan",
+      "phone": "7007370307",
+      "email": "faizan.arsh1999@gmail.com",
+      "address": "sitapur",
+      "city": "sitapur",
+      "state": "Uttar Pradesh",
+      "postalCode": "261001"
+    },
+    "paymentMethod": "cod",
+    "paymentStatus": "Pending",
+    "discountApplied": 0,
+    "items": [
+      {
+        "orderItemId": 1048261,
+        "id": 1048261,
+        "productVariantId": 5,
+        "productId": 1,
+        "quantity": 2,
+        "priceAtPurchase": 6490,
+        "unitPrice": 6490,
+        "productName": "Indigo Pleat Anarkali Suit",
+        "sku": "NIL-INDIGO-PLEAT-ANARKALI-SUIT-FREE SIZE",
+        "size": "FREE SIZE",
+        "color": "Standard",
+        "imageUrl": "https://nilasabackend.geecera.com/uploads/products/1/6e340989-5c2f-4eec-8920-56e810b791e6.webp"
+      }
+    ],
+    "payment": {
+      "paymentId": 113826,
+      "status": "Pending",
+      "amount": 12980,
+      "currency": "INR",
+      "gatewayTransactionId": "NIL-TXN-1787235356802"
+    }
+  },
+  {
     "orderId": 104825,
     "id": 104825,
     "orderNumber": "NIL-104825",

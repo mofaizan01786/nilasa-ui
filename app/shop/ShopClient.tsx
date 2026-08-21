@@ -52,11 +52,17 @@ function getColorHex(colorName: string): string {
 export function ShopClient({
   initialProducts = [],
   categories = [],
-  initialFilters = null
+  initialFilters = null,
+  fixedCategory,
+  categoryTitle,
+  categoryDesc
 }: {
   initialProducts?: Product[];
   categories?: Category[];
   initialFilters?: FilterOptions | null;
+  fixedCategory?: string;
+  categoryTitle?: string;
+  categoryDesc?: string;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -64,7 +70,7 @@ export function ShopClient({
 
   // Search & Category URL params
   const qParam = searchParams.get("q") || searchParams.get("search") || "";
-  const catParam = searchParams.get("category") || searchParams.get("type") || "";
+  const catParam = searchParams.get("category") || searchParams.get("type") || fixedCategory || "";
   const sizeParam = searchParams.get("size") || "all";
   const colorParam = searchParams.get("color") || "all";
   const minPriceParam = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : null;
@@ -77,7 +83,7 @@ export function ShopClient({
   const [isLoading, setIsLoading] = useState(false);
 
   // Active filter selections
-  const [selectedCategory, setSelectedCategory] = useState<string>(catParam || "all");
+  const [selectedCategory, setSelectedCategory] = useState<string>(fixedCategory || catParam || "all");
   const [selectedSize, setSelectedSize] = useState<string>(sizeParam);
   const [selectedColor, setSelectedColor] = useState<string>(colorParam);
   const [minPrice, setMinPrice] = useState<number | "">(minPriceParam ?? "");
@@ -101,13 +107,13 @@ export function ShopClient({
 
   // Sync state from URL search params
   useEffect(() => {
-    setSelectedCategory(catParam || "all");
+    setSelectedCategory(fixedCategory || catParam || "all");
     setSelectedSize(sizeParam);
     setSelectedColor(colorParam);
     setMinPrice(minPriceParam ?? "");
     setMaxPrice(maxPriceParam ?? "");
     setSortBy(sortParam);
-  }, [catParam, sizeParam, colorParam, minPriceParam, maxPriceParam, sortParam]);
+  }, [catParam, sizeParam, colorParam, minPriceParam, maxPriceParam, sortParam, fixedCategory]);
 
   // Master fetch function querying backend filter API
   const applyFilters = useCallback(
@@ -160,7 +166,7 @@ export function ShopClient({
       // Update URL query string without page reload
       const newUrlParams = new URLSearchParams();
       if (srch) newUrlParams.set("q", srch);
-      if (cat && cat !== "all") newUrlParams.set("category", cat);
+      if (!fixedCategory && cat && cat !== "all") newUrlParams.set("category", cat);
       if (sz && sz !== "all") newUrlParams.set("size", sz);
       if (clr && clr !== "all") newUrlParams.set("color", clr);
       if (typeof minP === "number") newUrlParams.set("minPrice", minP.toString());
@@ -168,11 +174,12 @@ export function ShopClient({
       if (srt && srt !== "featured") newUrlParams.set("sortBy", srt);
 
       const qs = newUrlParams.toString();
+      const basePath = fixedCategory ? `/category/${fixedCategory}` : "/shop";
       startTransition(() => {
-        router.push(`/shop${qs ? `?${qs}` : ""}`, { scroll: false });
+        router.push(`${basePath}${qs ? `?${qs}` : ""}`, { scroll: false });
       });
     },
-    [selectedCategory, selectedSize, selectedColor, minPrice, maxPrice, sortBy, qParam, filters, categories, router]
+    [selectedCategory, selectedSize, selectedColor, minPrice, maxPrice, sortBy, qParam, filters, categories, router, fixedCategory]
   );
 
   // Trigger query when pills or sort change
@@ -225,7 +232,7 @@ export function ShopClient({
     : ["Lavender", "Olive", "Gold", "Ivory", "Navy", "Rose", "Emerald"];
 
   const activeFiltersCount =
-    (selectedCategory !== "all" ? 1 : 0) +
+    (!fixedCategory && selectedCategory !== "all" ? 1 : 0) +
     (selectedSize !== "all" ? 1 : 0) +
     (selectedColor !== "all" ? 1 : 0) +
     (typeof minPrice === "number" || typeof maxPrice === "number" ? 1 : 0);
@@ -237,12 +244,18 @@ export function ShopClient({
         <div className="shop-header-compact-inner">
           <div className="shop-title-group">
             <h1 className="shop-compact-title">
-              {qParam
-                ? `Results for "${qParam}"`
-                : selectedCategory !== "all"
-                ? categoryItems.find((c) => c.slug === selectedCategory)?.name || "All Collections"
-                : "All Collections"}
+              {categoryTitle ||
+                (qParam
+                  ? `Results for "${qParam}"`
+                  : selectedCategory !== "all"
+                  ? categoryItems.find((c) => c.slug === selectedCategory)?.name || "All Collections"
+                  : "All Collections")}
             </h1>
+            {categoryDesc && (
+              <p style={{ color: "var(--ink-muted)", fontSize: "0.85rem", margin: "4px 0 0 0", maxWidth: 600 }}>
+                {categoryDesc}
+              </p>
+            )}
             <span className="shop-compact-count">
               ({products.length} {products.length === 1 ? "piece" : "pieces"})
             </span>
@@ -250,36 +263,38 @@ export function ShopClient({
         </div>
       </section>
 
-      {/* ── 2. Dynamic Category Filter Pills Row (Backend Powered) ── */}
-      <nav className="shop-pills-row" aria-label="Category Filters">
-        <div className="shop-pills-scroll">
-          <button
-            type="button"
-            onClick={() => handlePillClick("all")}
-            className={`shop-pill-chip ${selectedCategory === "all" ? "active" : ""}`}
-          >
-            <span>All</span>
-          </button>
-          {categoryItems.map((cat) => {
-            const isActive = selectedCategory.toLowerCase() === cat.slug.toLowerCase();
-            return (
-              <button
-                key={cat.categoryId || cat.slug}
-                type="button"
-                onClick={() => handlePillClick(cat.slug)}
-                className={`shop-pill-chip ${isActive ? "active" : ""}`}
-              >
-                <span>{cat.name}</span>
-                {cat.productCount > 0 && (
-                  <span style={{ opacity: 0.7, fontSize: "0.7rem", marginLeft: 4 }}>
-                    ({cat.productCount})
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      {/* ── 2. Dynamic Category Filter Pills Row (Only on general /shop page, never on specific category pages) ── */}
+      {!fixedCategory && categoryItems.length > 0 && (
+        <nav className="shop-pills-row" aria-label="Category Filters">
+          <div className="shop-pills-scroll">
+            <button
+              type="button"
+              onClick={() => handlePillClick("all")}
+              className={`shop-pill-chip ${selectedCategory === "all" ? "active" : ""}`}
+            >
+              <span>All</span>
+            </button>
+            {categoryItems.map((cat) => {
+              const isActive = selectedCategory.toLowerCase() === cat.slug.toLowerCase();
+              return (
+                <button
+                  key={cat.categoryId || cat.slug}
+                  type="button"
+                  onClick={() => handlePillClick(cat.slug)}
+                  className={`shop-pill-chip ${isActive ? "active" : ""}`}
+                >
+                  <span>{cat.name}</span>
+                  {cat.productCount > 0 && (
+                    <span style={{ opacity: 0.7, fontSize: "0.7rem", marginLeft: 4 }}>
+                      ({cat.productCount})
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {/* ── 3. Product Count & Filter / Sort Action Bar ── */}
       <section className="shop-controls-bar">
@@ -349,7 +364,7 @@ export function ShopClient({
             Active:
           </span>
 
-          {selectedCategory !== "all" && (
+          {!fixedCategory && selectedCategory !== "all" && (
             <button
               type="button"
               onClick={() => {
@@ -523,32 +538,34 @@ export function ShopClient({
             </div>
 
             <div className="mobile-drawer-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Category Filter */}
-              <div className="drawer-filter-group">
-                <span className="drawer-filter-title">Category</span>
-                <div className="drawer-chips-grid">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory("all")}
-                    className={`drawer-chip ${selectedCategory === "all" ? "selected" : ""}`}
-                  >
-                    <span>All Categories</span>
-                    {selectedCategory === "all" && <Check size={13} />}
-                  </button>
-                  {categoryItems.map((cat) => (
+              {/* Category Filter (Only on general /shop page) */}
+              {!fixedCategory && (
+                <div className="drawer-filter-group">
+                  <span className="drawer-filter-title">Category</span>
+                  <div className="drawer-chips-grid">
                     <button
-                      key={cat.categoryId || cat.slug}
                       type="button"
-                      onClick={() => setSelectedCategory(cat.slug)}
-                      className={`drawer-chip ${selectedCategory.toLowerCase() === cat.slug.toLowerCase() ? "selected" : ""}`}
+                      onClick={() => setSelectedCategory("all")}
+                      className={`drawer-chip ${selectedCategory === "all" ? "selected" : ""}`}
                     >
-                      <span>{cat.name}</span>
-                      {cat.productCount > 0 && <span style={{ opacity: 0.7, fontSize: "0.72rem" }}>({cat.productCount})</span>}
-                      {selectedCategory.toLowerCase() === cat.slug.toLowerCase() && <Check size={13} />}
+                      <span>All Categories</span>
+                      {selectedCategory === "all" && <Check size={13} />}
                     </button>
-                  ))}
+                    {categoryItems.map((cat) => (
+                      <button
+                        key={cat.categoryId || cat.slug}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat.slug)}
+                        className={`drawer-chip ${selectedCategory.toLowerCase() === cat.slug.toLowerCase() ? "selected" : ""}`}
+                      >
+                        <span>{cat.name}</span>
+                        {cat.productCount > 0 && <span style={{ opacity: 0.7, fontSize: "0.72rem" }}>({cat.productCount})</span>}
+                        {selectedCategory.toLowerCase() === cat.slug.toLowerCase() && <Check size={13} />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Size Filter (Backend API) */}
               <div className="drawer-filter-group">

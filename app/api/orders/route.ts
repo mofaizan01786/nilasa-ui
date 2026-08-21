@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     // Try forwarding to ASP.NET Core backend if user is authenticated
     const authHeader = req.headers.get("authorization");
-    const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "";
+    const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://nilasabackend.geecera.com/api/v1";
     let backendOrderId: number | null = null;
 
     if (backendUrl && authHeader) {

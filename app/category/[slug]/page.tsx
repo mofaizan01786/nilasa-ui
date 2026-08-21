@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { fetchCategories, fetchPublishedProducts } from "@/lib/api";
-import { ProductCard } from "@/components/ProductCard";
+import { fetchCategories, fetchPublishedProducts, fetchProductFilters } from "@/lib/api";
+import { ShopClient } from "@/app/shop/ShopClient";
 
 export const revalidate = 3600; // ISR cache strategy
 
@@ -20,7 +21,7 @@ export async function generateMetadata({
     const slug = resolvedParams?.slug;
     if (!slug) return {};
     const categories = await fetchCategories();
-    const category = categories.find((c) => c.slug === slug);
+    const category = categories.find((c) => c.slug.toLowerCase() === slug.toLowerCase());
     if (!category) return {};
 
     return {
@@ -42,42 +43,40 @@ export default async function CategoryPage({
   const slug = resolvedParams?.slug;
   if (!slug) notFound();
 
-  const [categories, allProducts] = await Promise.all([
+  const [categories, allProducts, filters] = await Promise.all([
     fetchCategories(),
-    fetchPublishedProducts()
+    fetchPublishedProducts(),
+    fetchProductFilters()
   ]);
 
-  const category = categories.find((c) => c.slug === slug);
+  const category = categories.find((c) => c.slug.toLowerCase() === slug.toLowerCase());
   if (!category) notFound();
 
   const categoryProducts = allProducts.filter(
-    (p) => p.categoryId === category.id || p.categorySlug === category.slug
+    (p) => p.categoryId === category.categoryId || p.categorySlug?.toLowerCase() === category.slug.toLowerCase()
   );
 
   return (
-    <main className="shell" style={{ paddingTop: 40, paddingBottom: 100 }}>
-      <header className="page-title" style={{ marginBottom: 40 }}>
-        <span className="eyebrow eyebrow--gold">CATEGORY</span>
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "var(--fs-h2)", color: "var(--nilasa-indigo)", margin: "8px 0" }}>
-          {category.name}
-        </h1>
-        <p style={{ color: "var(--ink-muted)", fontSize: "var(--fs-body-lead)", maxWidth: 600 }}>
-          {category.description || `Handcrafted ${category.name} cut for elegance and comfort.`}
-        </p>
-      </header>
-
-      {categoryProducts.length > 0 ? (
-        <div className="product-grid">
-          {categoryProducts.map((product) => (
-            <ProductCard key={product.id || product.slug} product={product} />
-          ))}
-        </div>
-      ) : (
-        <div className="empty-cart-state">
-          <h2>No items currently in this category</h2>
-          <p>Check back soon for upcoming drops.</p>
-        </div>
-      )}
+    <main className="shop-page-wrapper">
+      <Suspense
+        fallback={
+          <div
+            className="empty-cart-state"
+            style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            Loading collection...
+          </div>
+        }
+      >
+        <ShopClient
+          initialProducts={categoryProducts}
+          categories={categories}
+          initialFilters={filters}
+          fixedCategory={category.slug}
+          categoryTitle={category.name}
+          categoryDesc={category.description}
+        />
+      </Suspense>
     </main>
   );
 }

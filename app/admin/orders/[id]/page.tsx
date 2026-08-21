@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { readOrders } from "@/lib/orders-store";
 import { fetchOrderByIdAdmin } from "@/lib/api";
 import { formatPrice } from "@/lib/catalog";
 
@@ -12,7 +13,15 @@ export default async function AdminOrderDetailPage({
 }) {
   const { id } = await params;
   const numId = parseInt(id, 10);
-  const order = await fetchOrderByIdAdmin(isNaN(numId) ? 101 : numId);
+
+  // Check local orders first
+  const localOrders = readOrders();
+  let order = localOrders.find((o) => (o.orderId || o.id) === numId) || null;
+
+  // Fallback to backend API
+  if (!order) {
+    order = await fetchOrderByIdAdmin(isNaN(numId) ? 101 : numId);
+  }
 
   if (!order) notFound();
 
@@ -58,65 +67,53 @@ export default async function AdminOrderDetailPage({
           <h3 style={{ fontFamily: "var(--font-mono)", fontSize: "0.88rem", textTransform: "uppercase", color: "#64748B", margin: "0 0 12px" }}>
             Payment & Status Overview
           </h3>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: "0.88rem" }}>
-            <span style={{ color: "#64748B" }}>Fulfillment Status:</span>
-            <span className={`admin-badge admin-badge--${order.status.toLowerCase()}`}>{order.status}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: "0.88rem" }}>
-            <span style={{ color: "#64748B" }}>Payment Method:</span>
-            <strong style={{ textTransform: "uppercase" }}>
-              {order.paymentMethod || order.payment?.status || "Online"}
-            </strong>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: "0.88rem" }}>
-            <span style={{ color: "#64748B" }}>Order Date:</span>
-            <span>{orderDate ? new Date(orderDate).toLocaleString("en-IN") : "—"}</span>
-          </div>
+          <p style={{ margin: "0 0 4px", color: "#475569", fontSize: "0.88rem" }}>
+            <strong>Status:</strong> <span style={{ textTransform: "capitalize", fontWeight: 700, color: order.status === "confirmed" ? "#047857" : "#B45309" }}>{order.status}</span>
+          </p>
+          <p style={{ margin: "0 0 4px", color: "#475569", fontSize: "0.88rem" }}>
+            <strong>Method:</strong> <span style={{ textTransform: "uppercase" }}>{order.paymentMethod || "UPI"}</span> ({order.paymentStatus || "Success"})
+          </p>
+          <p style={{ margin: "0 0 4px", color: "#475569", fontSize: "0.88rem" }}>
+            <strong>Total Paid:</strong> <strong style={{ color: "#0F172A" }}>{formatPrice(order.totalAmount)}</strong>
+          </p>
+          <p style={{ margin: "8px 0 0", color: "#94A3B8", fontSize: "0.75rem", fontFamily: "var(--font-mono)" }}>
+            Ordered on: {orderDate ? new Date(orderDate).toLocaleString("en-IN") : "Recent"}
+          </p>
         </div>
       </div>
 
-      {/* Line Items Table */}
+      {/* Ordered Items Table */}
       <div className="admin-card">
-        <h3 style={{ fontFamily: "var(--font-mono)", fontSize: "0.95rem", color: "#0F172A", margin: "0 0 16px" }}>
-          Purchased Items ({order.items.length})
+        <h3 style={{ fontFamily: "var(--font-mono)", fontSize: "0.88rem", textTransform: "uppercase", color: "#64748B", margin: "0 0 16px" }}>
+          Ordered Items ({order.items?.length || 0})
         </h3>
         <table className="admin-table">
           <thead>
             <tr>
-              <th>Item Name</th>
-              <th>Size</th>
-              <th>Unit Price</th>
+              <th>Item</th>
+              <th>Variant / SKU</th>
               <th>Quantity</th>
-              <th>Line Total</th>
+              <th>Unit Price</th>
+              <th>Subtotal</th>
             </tr>
           </thead>
           <tbody>
-            {order.items.map((item, idx) => {
-              const price = item.priceAtPurchase || item.unitPrice || 0;
-              return (
-                <tr key={idx}>
-                  <td>
-                    <strong style={{ color: "#0F172A" }}>{item.productName || `Variant #${item.productVariantId}`}</strong>
-                    {item.sku && <span style={{ display: "block", fontSize: "0.7rem", color: "#64748B" }}>SKU: {item.sku}</span>}
-                  </td>
-                  <td style={{ fontFamily: "var(--font-mono)" }}>{item.size || "Free"}</td>
-                  <td style={{ fontFamily: "var(--font-mono)" }}>{formatPrice(price)}</td>
-                  <td style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>x{item.quantity}</td>
-                  <td style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "#059669" }}>
-                    {formatPrice(price * item.quantity)}
-                  </td>
-                </tr>
-              );
-            })}
+            {(order.items || []).map((item, idx) => (
+              <tr key={idx}>
+                <td>
+                  <strong>{item.productName || `Product #${item.productId}`}</strong>
+                  {item.size && <span style={{ display: "block", fontSize: "0.75rem", color: "#64748B" }}>Size: {item.size}</span>}
+                </td>
+                <td style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "#64748B" }}>
+                  {item.sku || `VAR-${item.productVariantId || item.productId}`}
+                </td>
+                <td>{item.quantity}</td>
+                <td>{formatPrice(item.unitPrice || item.priceAtPurchase || 0)}</td>
+                <td><strong>{formatPrice((item.unitPrice || item.priceAtPurchase || 0) * item.quantity)}</strong></td>
+              </tr>
+            ))}
           </tbody>
         </table>
-
-        <div style={{ borderTop: "2px solid #0F172A", marginTop: 20, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "#0F172A" }}>Grand Total Amount</span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "1.4rem", fontWeight: 700, color: "#B8912E" }}>
-            {formatPrice(order.totalAmount)}
-          </span>
-        </div>
       </div>
     </div>
   );

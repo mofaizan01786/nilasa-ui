@@ -91,6 +91,10 @@ export function Header() {
     }, 150);
   };
 
+  const handleOpenSearch = () => {
+    window.dispatchEvent(new CustomEvent("open-nilasa-search"));
+  };
+
   return (
     <>
       {/* Sticky Navbar Container (Locks to Viewport Top) */}
@@ -130,155 +134,167 @@ export function Header() {
         {/* 2. Main Minimalist Navbar */}
         <header className="site-header">
           <div className="header-inner">
-            {/* Mobile Menu Toggle Button */}
-            <button
-              type="button"
-              className="mobile-menu-btn"
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-              aria-expanded={mobileMenuOpen}
-            >
-              {mobileMenuOpen ? (
-                <X size={22} strokeWidth={2} />
-              ) : (
-                <Menu size={22} strokeWidth={2} />
-              )}
-            </button>
+            {/* ── LEFT ZONE ── */}
+            <div className="header-left-zone">
+              {/* Mobile Left Actions: Hamburger Menu + Search Button */}
+              <div className="mobile-left-nav">
+                <button
+                  type="button"
+                  className="mobile-nav-icon-btn mobile-menu-btn"
+                  onClick={() => setMobileMenuOpen((prev) => !prev)}
+                  aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                  aria-expanded={mobileMenuOpen}
+                >
+                  {mobileMenuOpen ? (
+                    <X size={22} strokeWidth={2} />
+                  ) : (
+                    <Menu size={22} strokeWidth={2} />
+                  )}
+                </button>
 
-            {/* Desktop Dynamic Navigation Links from Admin API */}
-            <nav className="desktop-nav" onMouseLeave={handleMouseLeave}>
-              {menuItems.map((group) => {
-                const hasDropdown =
-                  (group.subLinks && group.subLinks.length > 0) ||
-                  (group.fabricLinks && group.fabricLinks.length > 0) ||
-                  !!group.promoCard;
-                const isOpen = activeDropdown === group.id;
-
-                return (
-                  <div
-                    key={group.id}
-                    className="nav-dropdown-anchor"
-                    onMouseEnter={() => (hasDropdown ? handleMouseEnter(group.id) : undefined)}
-                  >
-                    <Link
-                      href={group.href}
-                      className={`nav-link ${isOpen ? "nav-link--active" : ""}`}
-                    >
-                      <span>{group.label}</span>
-                      {hasDropdown && (
-                        <ChevronDown
-                          size={12}
-                          className={`nav-chevron ${isOpen ? "nav-chevron--rotated" : ""}`}
-                        />
-                      )}
-                    </Link>
-
-                    {/* Luxury Mega Dropdown Panel */}
-                    {hasDropdown && isOpen && (
-                      <div
-                        className="nav-dropdown-menu"
-                        onMouseEnter={() => handleMouseEnter(group.id)}
-                      >
-                        <div
-                          className="nav-dropdown-inner"
-                          style={{
-                            gridTemplateColumns:
-                              group.fabricLinks && group.fabricLinks.length > 0
-                                ? "1fr 1fr 220px"
-                                : "1.2fr 220px"
-                          }}
-                        >
-                          {/* Col 1: Sub-category Links */}
-                          {group.subLinks && group.subLinks.length > 0 && (
-                            <div className="dropdown-col">
-                              <span className="dropdown-col-heading">EXPLORE CATEGORIES</span>
-                              <div className="dropdown-links-list">
-                                {group.subLinks.map((sub) => (
-                                  <Link
-                                    key={sub.id}
-                                    href={sub.href}
-                                    className="dropdown-link-item"
-                                  >
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                      <span>{sub.label}</span>
-                                      {sub.badge && (
-                                        <span className="dropdown-nav-badge">{sub.badge}</span>
-                                      )}
-                                    </div>
-                                    <ChevronRight size={13} className="dropdown-item-arrow" />
-                                  </Link>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Col 2: Fabrics & Weaves (if configured) */}
-                          {group.fabricLinks && group.fabricLinks.length > 0 && (
-                            <div className="dropdown-col">
-                              <span className="dropdown-col-heading">FABRICS & WEAVES</span>
-                              <div className="dropdown-links-list">
-                                {group.fabricLinks.map((fab) => (
-                                  <Link
-                                    key={fab.id}
-                                    href={fab.href}
-                                    className="dropdown-link-item"
-                                  >
-                                    <span>{fab.label}</span>
-                                    <ChevronRight size={13} className="dropdown-item-arrow" />
-                                  </Link>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Col 3: Visual Featured Highlight Card */}
-                          {group.promoCard && (
-                            <div className="dropdown-featured-card">
-                              {group.promoCard.badge && (
-                                <span className="dropdown-featured-badge">
-                                  {group.promoCard.badge}
-                                </span>
-                              )}
-                              <h4 className="dropdown-featured-title">
-                                {group.promoCard.title}
-                              </h4>
-                              <p className="dropdown-featured-desc">
-                                {group.promoCard.description}
-                              </p>
-                              <Link
-                                href={group.promoCard.href}
-                                className="dropdown-featured-cta"
-                              >
-                                <span>Explore Collection</span>
-                                <ArrowRight size={13} />
-                              </Link>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </nav>
-
-            {/* Center Brand Identity with High-Contrast Luxury Logo */}
-            <Link href="/" className="brand-minimal" aria-label="Nilasa - Grace In Every Thread">
-              <div className="brand-logo-frame">
-                <Image
-                  src="/nilasa-black-logo.PNG"
-                  alt="Nilasa - Grace In Every Thread"
-                  width={240}
-                  height={120}
-                  priority
-                  className="brand-logo-img"
-                />
+                <button
+                  type="button"
+                  className="mobile-nav-icon-btn mobile-search-btn"
+                  onClick={handleOpenSearch}
+                  aria-label="Open search dialog"
+                >
+                  <Search size={21} strokeWidth={1.9} />
+                </button>
               </div>
-            </Link>
 
-            {/* Right Header Actions */}
+              {/* Desktop Dynamic Navigation Links from Admin API */}
+              <nav className="desktop-nav" onMouseLeave={handleMouseLeave}>
+                {menuItems.map((group) => {
+                  const hasDropdown =
+                    (group.subLinks && group.subLinks.length > 0) ||
+                    (group.fabricLinks && group.fabricLinks.length > 0) ||
+                    !!group.promoCard;
+                  const isOpen = activeDropdown === group.id;
+
+                  return (
+                    <div
+                      key={group.id}
+                      className="nav-dropdown-anchor"
+                      onMouseEnter={() => (hasDropdown ? handleMouseEnter(group.id) : undefined)}
+                    >
+                      <Link
+                        href={group.href}
+                        className={`nav-link ${isOpen ? "nav-link--active" : ""}`}
+                      >
+                        <span>{group.label}</span>
+                        {hasDropdown && (
+                          <ChevronDown
+                            size={12}
+                            className={`nav-chevron ${isOpen ? "nav-chevron--rotated" : ""}`}
+                          />
+                        )}
+                      </Link>
+
+                      {/* Luxury Mega Dropdown Panel */}
+                      {hasDropdown && isOpen && (
+                        <div
+                          className="nav-dropdown-menu"
+                          onMouseEnter={() => handleMouseEnter(group.id)}
+                        >
+                          <div
+                            className="nav-dropdown-inner"
+                            style={{
+                              gridTemplateColumns:
+                                group.fabricLinks && group.fabricLinks.length > 0
+                                  ? "1fr 1fr 220px"
+                                  : "1.2fr 220px"
+                            }}
+                          >
+                            {/* Col 1: Sub-category Links */}
+                            {group.subLinks && group.subLinks.length > 0 && (
+                              <div className="dropdown-col">
+                                <span className="dropdown-col-heading">EXPLORE CATEGORIES</span>
+                                <div className="dropdown-links-list">
+                                  {group.subLinks.map((sub) => (
+                                    <Link
+                                      key={sub.id}
+                                      href={sub.href}
+                                      className="dropdown-link-item"
+                                    >
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <span>{sub.label}</span>
+                                        {sub.badge && (
+                                          <span className="dropdown-nav-badge">{sub.badge}</span>
+                                        )}
+                                      </div>
+                                      <ChevronRight size={13} className="dropdown-item-arrow" />
+                                    </Link>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Col 2: Fabrics & Weaves (if configured) */}
+                            {group.fabricLinks && group.fabricLinks.length > 0 && (
+                              <div className="dropdown-col">
+                                <span className="dropdown-col-heading">FABRICS & WEAVES</span>
+                                <div className="dropdown-links-list">
+                                  {group.fabricLinks.map((fab) => (
+                                    <Link
+                                      key={fab.id}
+                                      href={fab.href}
+                                      className="dropdown-link-item"
+                                    >
+                                      <span>{fab.label}</span>
+                                      <ChevronRight size={13} className="dropdown-item-arrow" />
+                                    </Link>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Col 3: Visual Featured Highlight Card */}
+                            {group.promoCard && (
+                              <div className="dropdown-featured-card">
+                                {group.promoCard.badge && (
+                                  <span className="dropdown-featured-badge">
+                                    {group.promoCard.badge}
+                                  </span>
+                                )}
+                                <h4 className="dropdown-featured-title">
+                                  {group.promoCard.title}
+                                </h4>
+                                <p className="dropdown-featured-desc">
+                                  {group.promoCard.description}
+                                </p>
+                                <Link
+                                  href={group.promoCard.href}
+                                  className="dropdown-featured-cta"
+                                >
+                                  <span>Explore Collection</span>
+                                  <ArrowRight size={13} />
+                                </Link>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* ── CENTER ZONE: BRAND IDENTITY (ALWAYS VISIBLE & CENTERED) ── */}
+            <div className="header-center-zone">
+              <Link href="/" className="brand-minimal" aria-label="Nilasa - Grace In Every Thread">
+                <div className="brand-logo-frame">
+                  <span className="brand-wordmark">N I L A S A</span>
+                </div>
+              </Link>
+            </div>
+
+            {/* ── RIGHT ZONE: ACTIONS ── */}
             <div className="header-actions">
-              <SearchBar />
+              {/* Desktop Search Bar (Hidden on Mobile) */}
+              <div className="desktop-search-container">
+                <SearchBar />
+              </div>
 
               {/* Customer Account / Sign In */}
               {isAuthenticated ? (
@@ -288,7 +304,7 @@ export function Header() {
                   aria-label={`My Account (${firstName})`}
                   title={`Logged in as ${firstName}`}
                 >
-                  <UserIcon size={18} strokeWidth={1.9} />
+                  <UserIcon size={20} strokeWidth={1.9} />
                   <span className="customer-btn-label">{firstName}</span>
                 </Link>
               ) : (
@@ -298,21 +314,21 @@ export function Header() {
                   aria-label="Sign In"
                   title="Customer Sign In"
                 >
-                  <UserIcon size={18} strokeWidth={1.9} />
+                  <UserIcon size={20} strokeWidth={1.9} />
                   <span className="customer-btn-label">Sign In</span>
                 </Link>
               )}
 
-              {/* Wishlist Button with Counter Badge */}
-              <Link href="/wishlist" className="wishlist-link" aria-label={`Wishlist (${wishlistCount} items)`} title="My Wishlist">
-                <Heart size={18} strokeWidth={1.9} />
+              {/* Wishlist Button with Counter Badge (Desktop Only) */}
+              <Link href="/wishlist" className="wishlist-link desktop-only-link" aria-label={`Wishlist (${wishlistCount} items)`} title="My Wishlist">
+                <Heart size={20} strokeWidth={1.9} />
                 <span className="wishlist-link-text">Wishlist</span>
                 {wishlistCount > 0 && <span className="wishlist-count">{wishlistCount}</span>}
               </Link>
 
               {/* Shopping Bag Button with Counter Badge */}
               <Link href="/cart" className="cart-link" aria-label={`Shopping Bag (${cartCount} items)`}>
-                <ShoppingBag size={18} strokeWidth={1.9} />
+                <ShoppingBag size={20} strokeWidth={1.9} />
                 <span className="cart-link-text">Bag</span>
                 {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
               </Link>
@@ -334,15 +350,9 @@ export function Header() {
       <aside className={`mobile-nav-drawer ${mobileMenuOpen ? "open" : ""}`} aria-label="Mobile Navigation">
         <div className="mobile-drawer-header">
           <Link href="/" onClick={() => setMobileMenuOpen(false)} className="brand-minimal">
-            <div className="brand-logo-frame">
-              <Image
-                src="/nilasa-black-logo.PNG"
-                alt="Nilasa"
-                width={180}
-                height={80}
-                className="brand-logo-img-drawer"
-              />
-            </div>
+            <span className="brand-wordmark" style={{ fontSize: "1.1rem", letterSpacing: "0.18em" }}>
+              N I L A S A
+            </span>
           </Link>
           <button
             type="button"
@@ -430,6 +440,10 @@ export function Header() {
                 <span>Customer Sign In / Register</span>
               </Link>
             )}
+            <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="mobile-account-link">
+              <Heart size={16} />
+              <span>Wishlist ({wishlistCount})</span>
+            </Link>
             <Link href="/cart" onClick={() => setMobileMenuOpen(false)} className="mobile-account-link">
               <ShoppingBag size={16} />
               <span>Shopping Bag ({cartCount})</span>
