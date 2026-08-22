@@ -374,3 +374,72 @@ export interface BannersConfig {
   heroBanner: HeroBannerConfig;
   promotionalOfferBanner: PromotionalOfferBannerConfig;
 }
+
+// ─── Authoritative .NET Backend Orders & Payments DTOs ───
+
+export interface CreateOrderItemPayload {
+  productVariantId: number;
+  quantity: number;
+}
+
+export interface CreateBackendOrderPayload {
+  addressId: number;
+  items: CreateOrderItemPayload[];
+}
+
+export interface InitiatePaymentPayload {
+  orderId: number;
+  idempotencyKey?: string;
+}
+
+export interface PaymentInitiationResult {
+  gatewayOrderId: string;
+  gatewayKey: string;
+  amount: number;
+  currency: string;
+}
+
+export interface VerifyPaymentRequest {
+  gatewayOrderId: string;
+  gatewayPaymentId: string;
+  signature: string;
+}
+
+export interface VerifyPaymentResult {
+  paymentId: number;
+  paymentStatus: string;
+  orderStatus: string;
+  orderId: number;
+}
+
+export interface AuthoritativeOrderItemDto {
+  orderItemId: number;
+  productVariantId: number;
+  quantity: number;
+  priceAtPurchase: number;
+  productName: string;
+  sku: string;
+  size: string;
+  color: string;
+  imageUrl?: string | null;
+}
+
+export interface AuthoritativePaymentDto {
+  paymentId: number;
+  status: PaymentStatus;
+  amount: number;
+  currency: string;
+  gatewayTransactionId?: string | null;
+}
+
+export interface AuthoritativeOrderDetailsDto {
+  orderId: number;
+  userId: number;
+  addressId: number;
+  status: OrderStatus;
+  totalAmount: number;
+  placedAt: string;
+  items: AuthoritativeOrderItemDto[];
+  payment?: AuthoritativePaymentDto | null;
+}
+

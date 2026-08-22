@@ -14,13 +14,13 @@ export default async function AdminOrderDetailPage({
   const { id } = await params;
   const numId = parseInt(id, 10);
 
-  // Check local orders first
-  const localOrders = readOrders();
-  let order = localOrders.find((o) => (o.orderId || o.id) === numId) || null;
+  // 1. Fetch authoritative order from backend API first
+  let order = await fetchOrderByIdAdmin(isNaN(numId) ? 101 : numId);
 
-  // Fallback to backend API
+  // 2. Fallback to local store if backend did not return it
   if (!order) {
-    order = await fetchOrderByIdAdmin(isNaN(numId) ? 101 : numId);
+    const localOrders = readOrders();
+    order = localOrders.find((o) => (o.orderId || o.id) === numId) || null;
   }
 
   if (!order) notFound();

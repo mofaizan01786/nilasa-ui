@@ -3,7 +3,9 @@ import {
   CouponValidationResult, ProductStatus, OrderStatus, ProductVariant, ProductImage,
   CreateUserPayload, UpdateUserRolePayload, AdminResetPasswordPayload, ChangePasswordPayload,
   NavigationConfig, NavigationMenuItem, BannersConfig, RegisterCustomerPayload,
-  FilterOptions, ProductFilterParams, ShippingAddress, CartItem
+  FilterOptions, ProductFilterParams, ShippingAddress, CartItem,
+  CreateBackendOrderPayload, PaymentInitiationResult, VerifyPaymentRequest, VerifyPaymentResult,
+  AuthoritativeOrderDetailsDto
 } from "./types";
 import { resolveProductImageUrl } from "./catalog";
 
@@ -529,59 +531,173 @@ export async function updateCoupon(
 
 // ─── ADMIN & STOREFRONT (Orders) ────────────────────────
 
-export async function createOrder(payload: {
-  shippingAddress: ShippingAddress;
-  paymentMethod: string;
-  paymentStatus?: string;
-  transactionId?: string;
-  items: CartItem[];
-  totalAmount: number;
-  discountApplied?: number;
-  couponCode?: string;
-  userId?: number;
-}): Promise<{ success: boolean; orderId: number; order: Order }> {
-  const token = typeof window !== "undefined" ? window.localStorage.getItem("nilasa-auth-token") : null;
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
-  };
+// ─── AUTHORITATIVE .NET BACKEND ORDERS & PAYMENTS ─────────
 
-  const res = await fetch("/api/orders", {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload)
-  });
-
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || "Failed to place order. Please try again.");
-  }
-
-  const data = await res.json();
-  return {
-    success: true,
-    orderId: data.orderId || data.order?.orderId || data.order?.id,
-    order: normaliseOrder(data.order)
-  };
-}
-
-export async function fetchOrdersAdmin(statusFilter?: string, token?: string): Promise<Order[]> {
-  const isClient = typeof window !== "undefined";
-  const baseUrl = isClient ? "" : (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
+/**
+ * Creates an authoritative order through .NET API (POST /api/v1/orders).
+ * The backend calculates the final amount, validates stock, and persists the order.
+ */
+export async function createOrderBackend(
+  payload: CreateBackendOrderPayload,
+  token?: string
+): Promise<{ success: boolean; orderId: number; error?: string }> {
   const headers = await getAuthHeadersAsync(token);
+  const url = `${getApiBaseUrl()}/orders`;
 
   try {
-    const url = `${baseUrl}/api/orders${statusFilter && statusFilter !== "ALL" ? `?status=${encodeURIComponent(statusFilter)}` : ""}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      let errorMsg = "Failed to create order on backend.";
+      try {
+        const errJson = JSON.parse(errText);
+        errorMsg = errJson.message || errJson.error || errJson.title || errorMsg;
+      } catch {
+        if (errText) errorMsg = errText;
+      }
+      return { success: false, orderId: 0, error: errorMsg };
+    }
+
+    const data = await res.json();
+    const orderId = typeof data === "number" ? data : (data.orderId || data.id || 0);
+    return { success: true, orderId };
+  } catch (err: any) {
+    return { success: false, orderId: 0, error: err.message || "Network error while connecting to order service." };
+  }
+}
+
+/**
+ * Initiates Razorpay payment on .NET backend (POST /api/v1/payments/initiate).
+ * Amount is calculated from the database — never accepted from the client.
+ */
+export async function initiatePaymentBackend(
+  orderId: number,
+  idempotencyKey?: string,
+  token?: string
+): Promise<{ success: boolean; data?: PaymentInitiationResult; error?: string }> {
+  const headers = await getAuthHeadersAsync(token);
+  if (idempotencyKey) {
+    (headers as Record<string, string>)["Idempotency-Key"] = idempotencyKey;
+  }
+
+  const url = `${getApiBaseUrl()}/payments/initiate`;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ orderId })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      let errorMsg = "Failed to initiate payment on backend.";
+      try {
+        const errJson = JSON.parse(errText);
+        errorMsg = errJson.message || errJson.error || errJson.title || errorMsg;
+      } catch {
+        if (errText) errorMsg = errText;
+      }
+      return { success: false, error: errorMsg };
+    }
+
+    const data: PaymentInitiationResult = await res.json();
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Network error while connecting to payment service." };
+  }
+}
+
+/**
+ * Authoritatively verifies Razorpay HMAC signature on .NET backend (POST /api/v1/payments/verify).
+ * Frontend never decides success — only the backend verification response is trusted.
+ */
+export async function verifyPaymentBackend(
+  payload: VerifyPaymentRequest,
+  token?: string
+): Promise<{ success: boolean; data?: VerifyPaymentResult; error?: string }> {
+  const headers = await getAuthHeadersAsync(token);
+  const url = `${getApiBaseUrl()}/payments/verify`;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      let errorMsg = "Payment verification failed on backend.";
+      try {
+        const errJson = JSON.parse(errText);
+        errorMsg = errJson.message || errJson.error || errJson.title || errorMsg;
+      } catch {
+        if (errText) errorMsg = errText;
+      }
+      return { success: false, error: errorMsg };
+    }
+
+    const data: VerifyPaymentResult = await res.json();
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Network error while connecting to verification service." };
+  }
+}
+
+/**
+ * Fetches authoritative order and payment details from .NET API (GET /api/v1/orders/{id}).
+ */
+export async function fetchOrderByIdAuthoritative(
+  id: number,
+  token?: string
+): Promise<AuthoritativeOrderDetailsDto | null> {
+  const headers = await getAuthHeadersAsync(token);
+  const url = `${getApiBaseUrl()}/orders/${id}`;
+
+  try {
+    const res = await fetch(url, { headers, cache: "no-store" });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("[fetchOrderByIdAuthoritative] Error:", err);
+  }
+  return null;
+}
+
+/**
+ * Fetches user or admin orders list from .NET API (GET /api/v1/orders).
+ */
+export async function fetchOrdersAuthoritative(
+  userId?: number,
+  token?: string
+): Promise<AuthoritativeOrderDetailsDto[]> {
+  const headers = await getAuthHeadersAsync(token);
+  const query = userId ? `?userId=${userId}` : "";
+  const url = `${getApiBaseUrl()}/orders${query}`;
+
+  try {
     const res = await fetch(url, { headers, cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data)) return data.map(normaliseOrder);
+      if (Array.isArray(data)) return data;
     }
   } catch (err) {
-    console.warn("[fetchOrdersAdmin] Local API fallback:", err);
+    console.warn("[fetchOrdersAuthoritative] Error:", err);
   }
+  return [];
+}
 
-  // Fallback to direct backend API
+// ─── ADMIN ORDER RETRIEVAL (Authoritative .NET API) ──────
+
+export async function fetchOrdersAdmin(statusFilter?: string, token?: string): Promise<Order[]> {
+  const headers = await getAuthHeadersAsync(token);
   const backendRes = await safeFetch(`${getApiBaseUrl()}/orders`, { headers, cache: "no-store" });
   if (backendRes && backendRes.ok) {
     try {
@@ -591,26 +707,14 @@ export async function fetchOrdersAdmin(statusFilter?: string, token?: string): P
       }
       return data;
     } catch {
-      // json error
+      // json parse error
     }
   }
   return [];
 }
 
 export async function fetchOrderByIdAdmin(id: number, token?: string): Promise<Order | null> {
-  const isClient = typeof window !== "undefined";
-  const baseUrl = isClient ? "" : (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
   const headers = await getAuthHeadersAsync(token);
-
-  try {
-    const res = await fetch(`${baseUrl}/api/orders/${id}`, { headers, cache: "no-store" });
-    if (res.ok) {
-      return normaliseOrder(await res.json());
-    }
-  } catch {
-    // fallback
-  }
-
   const res = await safeFetch(`${getApiBaseUrl()}/orders/${id}`, { headers, cache: "no-store" });
   if (res && res.ok) {
     try {

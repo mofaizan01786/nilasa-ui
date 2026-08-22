@@ -6,7 +6,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/catalog";
 import { useCart } from "@/components/CartProvider";
-import { createOrder } from "@/lib/api";
+import { useAuth } from "@/components/AuthProvider";
+import {
+  createOrderBackend,
+  initiatePaymentBackend,
+  verifyPaymentBackend
+} from "@/lib/api";
 import {
   QrCode,
   CreditCard,
@@ -23,7 +28,8 @@ import {
   Copy,
   Check,
   ShieldAlert,
-  Smartphone
+  Smartphone,
+  AlertCircle
 } from "lucide-react";
 
 declare global {
@@ -58,6 +64,7 @@ const FALLBACK_COUPONS: Record<string, { discountPercent: number; name: string }
 
 export default function CheckoutPage() {
   const { items, total, clear } = useCart();
+  const { user, isAuthenticated, token } = useAuth();
   const router = useRouter();
 
   // Prevent SSR hydration flash
@@ -69,7 +76,9 @@ export default function CheckoutPage() {
   // Form states
   const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "upi" | "card" | "netbanking" | "cod">("razorpay");
   const [submitting, setSubmitting] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<string>("");
   const [error, setError] = useState("");
+  const [activeOrderId, setActiveOrderId] = useState<number | null>(null);
   const [copiedUpi, setCopiedUpi] = useState(false);
 
   // Coupon states
@@ -95,6 +104,18 @@ export default function CheckoutPage() {
     selectedBank: "HDFC Bank"
   });
 
+  // Prefill authenticated user details
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || user.name || "",
+        email: prev.email || user.email || "",
+        phone: prev.phone || user.phone || ""
+      }));
+    }
+  }, [user]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -109,8 +130,8 @@ export default function CheckoutPage() {
 
     setCouponLoading(true);
     try {
-      const token = typeof window !== "undefined" ? window.localStorage.getItem("nilasa-auth-token") : null;
-      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+      const activeToken = token || (typeof window !== "undefined" ? window.localStorage.getItem("nilasa-auth-token") : null);
+      const headers: HeadersInit = activeToken ? { Authorization: `Bearer ${activeToken}` } : {};
       const res = await fetch(
         `/api/v1/coupons/validate/${encodeURIComponent(cleanCode)}?orderAmount=${total}`,
         { headers }
@@ -167,49 +188,60 @@ export default function CheckoutPage() {
     setTimeout(() => setCopiedUpi(false), 2500);
   };
 
-  // ── Execute Razorpay Standard Checkout Flow ──
-  const executeRazorpayCheckout = async () => {
-    // 1. Ensure Razorpay checkout.js script is loaded
+  // ── Authoritative .NET Backend Razorpay Checkout Execution ──
+  const executeAuthoritativeRazorpayCheckout = async () => {
+    // 1. Ensure Razorpay SDK script is loaded
     const scriptLoaded = await loadRazorpayScript();
     if (!scriptLoaded || !window.Razorpay) {
-      throw new Error("Unable to load Razorpay payment gateway. Please check your internet connection.");
+      throw new Error("Unable to load Razorpay payment gateway. Please check your network connection.");
     }
 
-    // 2. Step 1: Call Backend Create Order (/api/create-order)
-    const createRes = await fetch("/api/create-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amount: finalTotal, // in rupees, endpoint will convert to paise
-        currency: "INR",
-        receipt: `nilasa_rcpt_${Date.now()}`,
-        notes: {
-          customer_name: formData.name,
-          customer_email: formData.email,
-          customer_phone: formData.phone,
-          shipping_city: formData.city
-        }
-      })
-    });
+    const activeToken = token || (typeof window !== "undefined" ? window.localStorage.getItem("nilasa-auth-token") : null);
 
-    if (!createRes.ok) {
-      const errData = await createRes.json().catch(() => ({}));
-      throw new Error(errData.error || errData.details || "Failed to initialize Razorpay checkout.");
+    // 2. Step 1: Create or Reuse Order on .NET API (POST /api/v1/orders)
+    let orderIdToUse = activeOrderId;
+
+    if (!orderIdToUse) {
+      setProcessingStatus("Creating order on secure server...");
+      const orderPayload = {
+        addressId: 1, // Default address reference
+        items: items.map((item) => ({
+          productVariantId: item.variantId || item.productId || 1,
+          quantity: item.quantity
+        }))
+      };
+
+      const orderRes = await createOrderBackend(orderPayload, activeToken || undefined);
+
+      if (!orderRes.success || !orderRes.orderId) {
+        throw new Error(orderRes.error || "Failed to create order on server. Please try again.");
+      }
+
+      orderIdToUse = orderRes.orderId;
+      setActiveOrderId(orderIdToUse);
     }
 
-    const orderData = await createRes.json();
-    const razorpayKey = orderData.key || orderData.gatewayKey || orderData.keyId || "rzp_test_TRBj98KKSxTXp0";
+    // 3. Step 2: Initiate Payment on .NET API (POST /api/v1/payments/initiate)
+    setProcessingStatus("Initializing payment gateway...");
+    const idempotencyKey = `pay_order_${orderIdToUse}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const initRes = await initiatePaymentBackend(orderIdToUse, idempotencyKey, activeToken || undefined);
 
-    // 3. Step 2: Open Razorpay Standard Checkout Modal
+    if (!initRes.success || !initRes.data) {
+      throw new Error(initRes.error || "Failed to initiate payment gateway session.");
+    }
+
+    const gatewayData = initRes.data;
+
+    // 4. Step 3: Open Razorpay Provider Checkout UI using Backend-Returned Values Only
     return new Promise<void>((resolve, reject) => {
       const options = {
-        key: razorpayKey,
-        amount: orderData.amount,
-        currency: orderData.currency || "INR",
+        key: gatewayData.gatewayKey,
+        amount: Math.round(Number(gatewayData.amount) * 100), // convert rupees to paise for gateway modal
+        currency: gatewayData.currency || "INR",
         name: "Nilasa",
-        description: "Nilasa Artisanal Luxury Wear",
+        description: `Nilasa Luxury Order #${orderIdToUse}`,
         image: "/nilasa-brand-logo.png",
-        order_id: orderData.order_id || orderData.id,
+        order_id: gatewayData.gatewayOrderId,
         prefill: {
           name: formData.name,
           email: formData.email,
@@ -219,59 +251,37 @@ export default function CheckoutPage() {
           address: formData.address,
           city: formData.city,
           state: formData.state,
-          postalCode: formData.postalCode
+          postalCode: formData.postalCode,
+          order_id: String(orderIdToUse)
         },
         theme: {
           color: "#354232" // Nilasa Signature Deep Olive
         },
-        // Step 3: Handle Payment Success -> Verify Signature
+        // Step 4: Handle Payment Completion -> Call .NET /verify Endpoint
         handler: async (response: {
           razorpay_payment_id: string;
           razorpay_order_id: string;
           razorpay_signature: string;
         }) => {
           try {
-            const verifyRes = await fetch("/api/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
-              })
-            });
+            setProcessingStatus("Verifying payment with bank & confirming order...");
+            const verifyRes = await verifyPaymentBackend(
+              {
+                gatewayOrderId: response.razorpay_order_id,
+                gatewayPaymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature
+              },
+              activeToken || undefined
+            );
 
-            const verifyData = await verifyRes.json();
-
-            if (!verifyRes.ok || !verifyData.success) {
-              throw new Error(verifyData.error || "Payment signature verification failed. Please contact support.");
+            if (!verifyRes.success || !verifyRes.data) {
+              throw new Error(verifyRes.error || "Payment verification failed on server.");
             }
 
-            // Payment is authentically verified! Save order to store and admin panel
-            const orderResult = await createOrder({
-              shippingAddress: {
-                name: formData.name,
-                phone: formData.phone,
-                email: formData.email,
-                address: formData.address,
-                city: formData.city,
-                state: formData.state,
-                postalCode: formData.postalCode
-              },
-              paymentMethod: "razorpay",
-              paymentStatus: "Success",
-              transactionId: response.razorpay_payment_id,
-              items,
-              totalAmount: finalTotal,
-              discountApplied: discountAmount,
-              couponCode: appliedCoupon?.code
-            });
-
+            // Only declare success once backend confirms
             clear();
             resolve();
-            router.push(
-              `/order-confirmation?order=${orderResult.orderId}&amount=${finalTotal}&name=${encodeURIComponent(formData.name)}&method=razorpay`
-            );
+            router.push(`/order-confirmation?order=${orderIdToUse}`);
           } catch (verifyErr) {
             reject(verifyErr);
           }
@@ -279,7 +289,8 @@ export default function CheckoutPage() {
         modal: {
           ondismiss: () => {
             setSubmitting(false);
-            setError("Razorpay payment modal closed. You can retry checkout anytime.");
+            setProcessingStatus("");
+            setError("Payment window was closed. You can retry payment whenever ready.");
             resolve();
           }
         }
@@ -289,10 +300,12 @@ export default function CheckoutPage() {
 
       rzp.on("payment.failed", (failResponse: any) => {
         setSubmitting(false);
-        const reason = failResponse.error?.description || failResponse.error?.reason || "Transaction was declined.";
+        setProcessingStatus("");
+        const reason = failResponse.error?.description || failResponse.error?.reason || "Transaction declined by bank.";
         setError(`Payment failed: ${reason}`);
       });
 
+      setProcessingStatus("Payment window open...");
       rzp.open();
     });
   };
@@ -300,7 +313,7 @@ export default function CheckoutPage() {
   // Main Checkout Submission Handler
   async function handleCheckout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!items.length) return;
+    if (!items.length || submitting) return;
 
     // Validate essential fields
     if (!formData.name.trim() || !formData.phone.trim() || !formData.address.trim()) {
@@ -310,44 +323,38 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     setError("");
+    setProcessingStatus("Preparing order...");
 
     try {
-      // 1. Razorpay Gateway Handling (Standard Web Checkout)
-      if (paymentMethod === "razorpay") {
-        await executeRazorpayCheckout();
+      // 1. Authoritative Online Gateway Checkout
+      if (paymentMethod === "razorpay" || paymentMethod === "card" || paymentMethod === "netbanking") {
+        await executeAuthoritativeRazorpayCheckout();
         return;
       }
 
-      // 2. Direct UPI / Card / COD / Netbanking Order Placement
-      const result = await createOrder({
-        shippingAddress: {
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          postalCode: formData.postalCode
-        },
-        paymentMethod,
-        paymentStatus: paymentMethod === "cod" ? "Pending" : "Success",
-        transactionId: formData.utrNumber || `NIL-TXN-${Date.now()}`,
-        items,
-        totalAmount: finalTotal,
-        discountApplied: discountAmount,
-        couponCode: appliedCoupon?.code
-      });
+      // 2. Direct Order Placement on .NET Backend
+      const activeToken = token || (typeof window !== "undefined" ? window.localStorage.getItem("nilasa-auth-token") : null);
+      const orderPayload = {
+        addressId: 1,
+        items: items.map((item) => ({
+          productVariantId: item.variantId || item.productId || 1,
+          quantity: item.quantity
+        }))
+      };
 
-      // Brief luxury order processing buffer
-      await new Promise((res) => setTimeout(res, 600));
+      const orderRes = await createOrderBackend(orderPayload, activeToken || undefined);
+
+      if (!orderRes.success || !orderRes.orderId) {
+        throw new Error(orderRes.error || "Order processing failed. Please try again.");
+      }
+
       clear();
-      router.push(
-        `/order-confirmation?order=${result.orderId}&amount=${finalTotal}&name=${encodeURIComponent(formData.name)}&method=${paymentMethod}`
-      );
+      router.push(`/order-confirmation?order=${orderRes.orderId}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Order processing failed. Please try again.");
     } finally {
       setSubmitting(false);
+      setProcessingStatus("");
     }
   }
 
@@ -844,7 +851,7 @@ export default function CheckoutPage() {
           >
             {submitting ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                <Loader2 size={18} className="animate-spin" /> Processing Payment...
+                <Loader2 size={18} className="animate-spin" /> {processingStatus || "Processing Payment..."}
               </span>
             ) : paymentMethod === "razorpay" ? (
               `Pay with Razorpay • ${formatPrice(finalTotal)}`

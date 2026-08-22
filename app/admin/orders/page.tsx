@@ -11,10 +11,7 @@ export default async function AdminOrdersPage({
 }) {
   const { status } = await searchParams;
 
-  // 1. Read local orders store (instant, 100% reliable)
-  const localOrders = readOrders();
-
-  // 2. Fetch remote backend orders if available
+  // 1. Fetch authoritative remote backend orders
   let backendOrders: any[] = [];
   try {
     backendOrders = await fetchOrdersAdmin(status);
@@ -22,12 +19,15 @@ export default async function AdminOrdersPage({
     // ignore
   }
 
-  // 3. Merge orders uniquely by orderId (local orders have highest priority)
+  // 2. Read local fallback orders store
+  const localOrders = readOrders();
+
+  // 3. Merge orders uniquely by orderId (authoritative backend orders have priority)
   const orderMap = new Map();
-  for (const o of localOrders) {
+  for (const o of backendOrders) {
     orderMap.set(o.orderId || o.id, o);
   }
-  for (const o of backendOrders) {
+  for (const o of localOrders) {
     if (!orderMap.has(o.orderId || o.id)) {
       orderMap.set(o.orderId || o.id, o);
     }
