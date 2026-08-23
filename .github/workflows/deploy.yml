@@ -1,29 +1,28 @@
-name: Build and Deploy Nilasa UI Storefront to SmarterASP.NET
+name: Deploy Node.js App via FTP
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
+    name: Build and Deploy
     runs-on: windows-latest
 
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20.x
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: '20.x'
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Build Next.js Application
+      - name: Build Application
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://win6030.site4now.net/api/v1' }}
@@ -31,36 +30,11 @@ jobs:
       - name: Package for IIS / SmarterASP.NET
         run: node scripts/package-iis.js --skip-build --keep-dist --skip-zip
 
-      - name: Deploy to SmarterASP.NET via Web Deploy (MSDeploy)
-        shell: powershell
-        run: |
-          $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
-          if (-not (Test-Path $msdeploy)) {
-            $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
-          }
-
-          $siteName = "${{ secrets.SMARTERASP_SITE_NAME }}"
-          if ([string]::IsNullOrWhiteSpace($siteName)) {
-            $siteName = "faizanansari-001-subsite3"
-          }
-
-          $publishUrl = "${{ secrets.SMARTERASP_PUBLISH_URL }}"
-          if ([string]::IsNullOrWhiteSpace($publishUrl)) {
-            $publishUrl = "https://win6030.site4now.net:8172/msdeploy.axd?site=$siteName"
-          }
-
-          $userName = "${{ secrets.SMARTERASP_USERNAME }}"
-          if ([string]::IsNullOrWhiteSpace($userName)) {
-            $userName = "faizanansari-001"
-          }
-
-          $password = "${{ secrets.SMARTERASP_PASSWORD || secrets.FTP_PASSWORD }}"
-
-          $distPath = Join-Path (Get-Location) "dist-package"
-
-          Write-Host "Deploying Next.js Storefront from $distPath to SmarterASP site: $siteName..."
-          & $msdeploy -verb:sync `
-            -source:contentPath="$distPath" `
-            -dest:contentPath="$siteName",ComputerName="$publishUrl",UserName="$userName",Password="$password",AuthType="Basic",IncludeAcls="False" `
-            -allowUntrusted `
-            -enableRule:DoNotDeleteRule
+      - name: Deploy Files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist-package/
+          server-dir: /
