@@ -931,12 +931,15 @@ export async function fetchOrderByIdAdmin(id: number, token?: string): Promise<O
 export async function updateOrderStatusAdmin(orderId: number, status: OrderStatus, token?: string): Promise<boolean> {
   const headers = getAuthHeaders(token);
   try {
-    const res = await fetch(`${getApiBaseUrl()}/orders/${orderId}`, {
+    const res = await safeFetch(`${getApiBaseUrl()}/orders/${orderId}`, {
       method: "PATCH",
-      headers,
+      headers: {
+        ...headers,
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({ status })
     });
-    return res.ok;
+    return !!res && res.ok;
   } catch {
     return false;
   }
