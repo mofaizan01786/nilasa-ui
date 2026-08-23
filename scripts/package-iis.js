@@ -208,14 +208,31 @@ server.listen(port, () => {
 
 fs.writeFileSync(path.join(distDir, 'server.js'), customServerJs, 'utf8');
 
-console.log('4. Creating nilasa-frontend-publish.zip...');
-try {
-  if (fs.existsSync(zipFile)) {
-    fs.unlinkSync(zipFile);
-  }
-} catch (e) {}
+const skipZip = process.argv.includes('--skip-zip');
 
-execSync(`tar -a -c -f "${zipFile}" -C "${distDir}" *`, { stdio: 'inherit' });
+if (!skipZip) {
+  console.log('4. Creating nilasa-frontend-publish.zip...');
+  try {
+    if (fs.existsSync(zipFile)) {
+      fs.unlinkSync(zipFile);
+    }
+  } catch (e) {}
+
+  try {
+    if (process.platform === 'win32') {
+      execSync(`tar -a -c -f "${zipFile}" -C "${distDir}" *`, { stdio: 'inherit' });
+    } else {
+      execSync(`tar -czf "${zipFile}" -C "${distDir}" .`, { stdio: 'inherit' });
+    }
+    if (fs.existsSync(zipFile)) {
+      const stats = fs.statSync(zipFile);
+      const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+      console.log(`✅ SUCCESS! nilasa-frontend-publish.zip created (${sizeMB} MB)`);
+    }
+  } catch (err) {
+    console.warn('Zip archive note:', err.message);
+  }
+}
 
 if (!keepDist) {
   console.log('5. Cleaning up temp dist folder...');
@@ -223,7 +240,3 @@ if (!keepDist) {
     fs.rmSync(distDir, { recursive: true, force: true });
   } catch (e) {}
 }
-
-const stats = fs.statSync(zipFile);
-const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-console.log(`✅ SUCCESS! nilasa-frontend-publish.zip created (${sizeMB} MB)`);

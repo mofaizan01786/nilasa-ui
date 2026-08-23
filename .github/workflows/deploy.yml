@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - v2-theme
   workflow_dispatch:
 
 jobs:
@@ -30,7 +29,7 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://win6030.site4now.net/api/v1' }}
 
       - name: Package for IIS / SmarterASP.NET
-        run: node scripts/package-iis.js --skip-build --keep-dist
+        run: node scripts/package-iis.js --skip-build --keep-dist --skip-zip
 
       - name: Deploy to SmarterASP.NET via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
