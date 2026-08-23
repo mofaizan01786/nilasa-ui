@@ -4,7 +4,14 @@ import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
-import { Order } from "@/lib/types";
+import { Order, SavedAddress } from "@/lib/types";
+import {
+  fetchOrdersAuthoritative,
+  fetchUserAddresses,
+  createUserAddress,
+  setDefaultUserAddress,
+  deleteUserAddress
+} from "@/lib/dotnet-backend";
 import { formatPrice } from "@/lib/catalog";
 import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
 import {
@@ -19,16 +26,41 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  Plus,
+  Trash2,
+  Check,
+  Building2,
+  Home,
+  Loader2,
+  Save
 } from "lucide-react";
 
 export default function AccountPage() {
   const router = useRouter();
   const { user, token, isAuthenticated, isLoading, logout, updatePassword } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<"orders" | "profile" | "security">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "addresses" | "profile" | "security">("orders");
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // Address states
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressSaving, setAddressSaving] = useState(false);
+  const [addressError, setAddressError] = useState("");
+  const [addressSuccess, setAddressSuccess] = useState("");
+  const [newAddress, setNewAddress] = useState({
+    label: "Home",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "Uttar Pradesh",
+    pincode: "",
+    country: "India",
+    isDefault: false
+  });
 
   // Change Password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -45,25 +77,95 @@ export default function AccountPage() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  // Load customer orders
+  // Load customer orders directly from .NET backend API
   useEffect(() => {
     if (isAuthenticated && token) {
       setOrdersLoading(true);
-      fetch("/api/v1/orders", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      })
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) => {
-          if (Array.isArray(data)) {
-            setOrders(data);
-          }
+      fetchOrdersAuthoritative(undefined, token)
+        .then((data: any) => {
+          if (Array.isArray(data)) setOrders(data);
         })
         .catch(() => {})
         .finally(() => setOrdersLoading(false));
     }
   }, [isAuthenticated, token]);
+
+  // Load saved delivery addresses from .NET backend API
+  const loadAddresses = async () => {
+    if (isAuthenticated && token) {
+      setAddressesLoading(true);
+      try {
+        const list = await fetchUserAddresses(token);
+        setAddresses(list);
+      } catch {
+        // ignore
+      } finally {
+        setAddressesLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      loadAddresses();
+    }
+  }, [isAuthenticated, token]);
+
+  const handleSaveAddress = async (e: FormEvent) => {
+    e.preventDefault();
+    setAddressError("");
+    setAddressSuccess("");
+
+    if (!newAddress.addressLine1.trim() || !newAddress.city.trim() || !newAddress.pincode.trim()) {
+      setAddressError("Please fill in Address Line 1, City, and PIN Code.");
+      return;
+    }
+
+    setAddressSaving(true);
+    try {
+      const created = await createUserAddress(newAddress, token || undefined);
+      if (created) {
+        setAddressSuccess("Delivery address saved successfully.");
+        setShowAddressForm(false);
+        setNewAddress({
+          label: "Home",
+          addressLine1: "",
+          addressLine2: "",
+          city: "",
+          state: "Uttar Pradesh",
+          pincode: "",
+          country: "India",
+          isDefault: false
+        });
+        await loadAddresses();
+      } else {
+        setAddressError("Failed to save address. Please try again.");
+      }
+    } catch (err: any) {
+      setAddressError(err.message || "Network error while saving address.");
+    } finally {
+      setAddressSaving(false);
+    }
+  };
+
+  const handleSetDefaultAddress = async (id: number) => {
+    try {
+      const ok = await setDefaultUserAddress(id, token || undefined);
+      if (ok) await loadAddresses();
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleDeleteAddress = async (id: number) => {
+    if (!confirm("Are you sure you want to remove this delivery address?")) return;
+    try {
+      const ok = await deleteUserAddress(id, token || undefined);
+      if (ok) await loadAddresses();
+    } catch {
+      // ignore
+    }
+  };
 
   const handlePasswordChange = async (e: FormEvent) => {
     e.preventDefault();
@@ -110,14 +212,14 @@ export default function AccountPage() {
   }
 
   return (
-    <div style={{ minHeight: "80vh", padding: "40px 0 80px" }}>
+    <div style={{ minHeight: "80vh", padding: "30px 0 80px" }}>
       <div className="shell">
         {/* Account Header Banner */}
         <div
           style={{
             backgroundColor: "#FFFFFF",
             border: "1px solid var(--nilasa-border)",
-            borderRadius: 12,
+            borderRadius: 14,
             padding: "24px 28px",
             marginBottom: 24,
             display: "flex",
@@ -134,7 +236,7 @@ export default function AccountPage() {
                 height: 52,
                 borderRadius: "50%",
                 backgroundColor: "var(--nilasa-card)",
-                border: "1px solid var(--nilasa-border)",
+                border: "1.5px solid var(--nilasa-gold)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -155,7 +257,7 @@ export default function AccountPage() {
               >
                 Welcome back, {user?.name}
               </h1>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "13px", color: "var(--ink-muted)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "13px", color: "var(--ink-muted)", flexWrap: "wrap" }}>
                 <span>{user?.email}</span>
                 <span>•</span>
                 <span
@@ -183,7 +285,7 @@ export default function AccountPage() {
               color: "var(--status-danger)",
               border: "1px solid #F8C8C3",
               borderRadius: 6,
-              padding: "8px 14px",
+              padding: "8px 16px",
               fontSize: "13px",
               fontWeight: 500,
               display: "inline-flex",
@@ -198,7 +300,7 @@ export default function AccountPage() {
         </div>
 
         {/* Account Tabs & Content Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 24 }}>
+        <div className="account-layout-grid" style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 24, alignItems: "flex-start" }}>
           {/* Navigation Sidebar */}
           <div
             style={{
@@ -209,7 +311,7 @@ export default function AccountPage() {
               height: "fit-content"
             }}
           >
-            <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <button
                 type="button"
                 onClick={() => setActiveTab("orders")}
@@ -217,20 +319,43 @@ export default function AccountPage() {
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 6,
+                  padding: "12px 14px",
+                  borderRadius: 8,
                   border: "none",
                   backgroundColor: activeTab === "orders" ? "var(--nilasa-card)" : "transparent",
                   color: activeTab === "orders" ? "var(--nilasa-indigo)" : "var(--ink-muted)",
-                  fontWeight: activeTab === "orders" ? 600 : 500,
+                  fontWeight: activeTab === "orders" ? 700 : 500,
                   fontSize: "13px",
                   textAlign: "left",
                   cursor: "pointer",
-                  transition: "background-color 0.12s ease"
+                  transition: "all 0.15s ease"
                 }}
               >
                 <ShoppingBag size={16} color={activeTab === "orders" ? "var(--nilasa-gold)" : "var(--ink-muted)"} />
                 <span>My Orders ({orders.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("addresses")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "12px 14px",
+                  borderRadius: 8,
+                  border: "none",
+                  backgroundColor: activeTab === "addresses" ? "var(--nilasa-card)" : "transparent",
+                  color: activeTab === "addresses" ? "var(--nilasa-indigo)" : "var(--ink-muted)",
+                  fontWeight: activeTab === "addresses" ? 700 : 500,
+                  fontSize: "13px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                <MapPin size={16} color={activeTab === "addresses" ? "var(--nilasa-gold)" : "var(--ink-muted)"} />
+                <span>Saved Addresses ({addresses.length})</span>
               </button>
 
               <button
@@ -240,20 +365,20 @@ export default function AccountPage() {
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 6,
+                  padding: "12px 14px",
+                  borderRadius: 8,
                   border: "none",
                   backgroundColor: activeTab === "profile" ? "var(--nilasa-card)" : "transparent",
                   color: activeTab === "profile" ? "var(--nilasa-indigo)" : "var(--ink-muted)",
-                  fontWeight: activeTab === "profile" ? 600 : 500,
+                  fontWeight: activeTab === "profile" ? 700 : 500,
                   fontSize: "13px",
                   textAlign: "left",
                   cursor: "pointer",
-                  transition: "background-color 0.12s ease"
+                  transition: "all 0.15s ease"
                 }}
               >
                 <User size={16} color={activeTab === "profile" ? "var(--nilasa-gold)" : "var(--ink-muted)"} />
-                <span>Profile & Details</span>
+                <span>Personal Details</span>
               </button>
 
               <button
@@ -263,16 +388,16 @@ export default function AccountPage() {
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 6,
+                  padding: "12px 14px",
+                  borderRadius: 8,
                   border: "none",
                   backgroundColor: activeTab === "security" ? "var(--nilasa-card)" : "transparent",
                   color: activeTab === "security" ? "var(--nilasa-indigo)" : "var(--ink-muted)",
-                  fontWeight: activeTab === "security" ? 600 : 500,
+                  fontWeight: activeTab === "security" ? 700 : 500,
                   fontSize: "13px",
                   textAlign: "left",
                   cursor: "pointer",
-                  transition: "background-color 0.12s ease"
+                  transition: "all 0.15s ease"
                 }}
               >
                 <Lock size={16} color={activeTab === "security" ? "var(--nilasa-gold)" : "var(--ink-muted)"} />
@@ -281,127 +406,99 @@ export default function AccountPage() {
             </nav>
           </div>
 
-          {/* Main Tab Panel */}
-          <div
-            style={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid var(--nilasa-border)",
-              borderRadius: 12,
-              padding: "28px 30px"
-            }}
-          >
-            {/* Tab 1: Orders */}
+          {/* Main Tab Content */}
+          <div>
+            {/* ── ORDERS TAB ── */}
             {activeTab === "orders" && (
-              <div>
+              <div
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid var(--nilasa-border)",
+                  borderRadius: 14,
+                  padding: "24px"
+                }}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                  <div>
-                    <h2
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: "20px",
-                        fontWeight: 600,
-                        color: "var(--nilasa-indigo)",
-                        margin: "0 0 4px 0"
-                      }}
-                    >
-                      My Purchase History
-                    </h2>
-                    <p style={{ fontSize: "13px", color: "var(--ink-muted)", margin: 0 }}>
-                      Track current shipments and view previous Nilasa orders.
-                    </p>
-                  </div>
-
-                  <Link
-                    href="/shop"
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--nilasa-indigo)",
-                      fontWeight: 600,
-                      textDecoration: "underline"
-                    }}
-                  >
-                    Browse Collections
+                  <h2 style={{ fontSize: "16px", fontWeight: 600, color: "var(--nilasa-indigo)", margin: 0 }}>
+                    Order History
+                  </h2>
+                  <Link href="/shop" className="button button--gold" style={{ fontSize: "12px", padding: "6px 14px" }}>
+                    Continue Shopping
                   </Link>
                 </div>
 
                 {ordersLoading ? (
-                  <p style={{ color: "var(--ink-muted)", fontSize: "13px" }}>Loading your orders...</p>
+                  <div style={{ textAlign: "center", padding: "40px 0", color: "var(--ink-muted)" }}>
+                    <p>Loading your orders...</p>
+                  </div>
                 ) : orders.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "48px 20px" }}>
-                    <ShoppingBag size={38} color="var(--nilasa-gold)" style={{ margin: "0 auto 12px" }} />
-                    <h3 style={{ fontSize: "16px", color: "var(--nilasa-indigo)", margin: "0 0 6px 0" }}>
-                      No orders placed yet
-                    </h3>
-                    <p style={{ fontSize: "13px", color: "var(--ink-muted)", maxWidth: 360, margin: "0 auto 18px" }}>
-                      Discover our curated collection of handcrafted suits, chanderi kurtis, and silk dupattas.
+                  <div style={{ textAlign: "center", padding: "48px 0" }}>
+                    <ShoppingBag size={36} color="var(--nilasa-gold)" style={{ margin: "0 auto 12px", opacity: 0.7 }} />
+                    <p style={{ fontWeight: 600, color: "var(--nilasa-indigo)", margin: "0 0 6px" }}>No orders placed yet</p>
+                    <p style={{ color: "var(--ink-muted)", fontSize: "13px", margin: "0 0 20px" }}>
+                      Explore our handcrafted collections and experience pure artisanal luxury.
                     </p>
-                    <Link
-                      href="/shop"
-                      style={{
-                        backgroundColor: "var(--nilasa-indigo)",
-                        color: "#FFFFFF",
-                        borderRadius: 6,
-                        padding: "10px 20px",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                        display: "inline-block"
-                      }}
-                    >
-                      Start Shopping
+                    <Link href="/shop" className="button button--gold" style={{ fontSize: "13px" }}>
+                      Discover Collections →
                     </Link>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    {orders.map((ord) => {
-                      const oid = ord.orderId || ord.id || 0;
-                      const dateStr = ord.placedAt || ord.createdAt || "";
+                    {orders.map((order) => {
+                      const orderDate = new Date(order.placedAt || order.createdAt || Date.now()).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric"
+                      });
+
                       return (
                         <div
-                          key={oid}
+                          key={order.orderId || order.id}
                           style={{
                             border: "1px solid var(--nilasa-border)",
-                            borderRadius: 8,
-                            padding: "18px 20px",
-                            backgroundColor: "var(--nilasa-ivory)"
+                            borderRadius: 10,
+                            padding: "16px 20px",
+                            backgroundColor: "#FAFAFA"
                           }}
                         >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
                             <div>
-                              <strong style={{ fontSize: "15px", color: "var(--nilasa-indigo)" }}>
-                                Order #{oid}
-                              </strong>
-                              <div style={{ fontSize: "12px", color: "var(--ink-muted)", marginTop: 2 }}>
-                                Placed on {dateStr ? new Date(dateStr).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                                <span style={{ fontWeight: 700, color: "var(--nilasa-indigo)", fontSize: "14px" }}>
+                                  #{order.orderNumber || `NIL-${order.orderId || order.id}`}
+                                </span>
+                                <OrderStatusBadge status={order.status} />
                               </div>
+                              <span style={{ fontSize: "12px", color: "var(--ink-muted)" }}>Placed on {orderDate}</span>
                             </div>
 
                             <div style={{ textAlign: "right" }}>
-                              <span style={{ fontSize: "16px", fontWeight: 700, color: "var(--nilasa-indigo)" }}>
-                                {formatPrice(ord.totalAmount)}
-                              </span>
-                              <div style={{ marginTop: 4 }}>
-                                <OrderStatusBadge status={ord.status} showStepper />
-                              </div>
+                              <span style={{ fontSize: "11px", color: "var(--ink-muted)", display: "block" }}>Total Amount</span>
+                              <strong style={{ fontSize: "15px", color: "var(--nilasa-indigo)" }}>
+                                {formatPrice(order.totalAmount)}
+                              </strong>
                             </div>
                           </div>
 
-                          {/* Line items summary */}
-                          {ord.items && ord.items.length > 0 && (
-                            <div style={{ borderTop: "1px solid var(--nilasa-border)", paddingTop: 12, marginTop: 12 }}>
-                              <span style={{ fontSize: "12px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600 }}>
-                                Items ({ord.items.length}):
-                              </span>
-                              <ul style={{ margin: "6px 0 0 0", paddingLeft: 18, fontSize: "13px", color: "var(--ink-primary)" }}>
-                                {ord.items.map((it, idx) => (
-                                  <li key={it.orderItemId || idx} style={{ marginBottom: 4 }}>
-                                    {it.productName} ({it.size}) × {it.quantity} — {formatPrice(it.priceAtPurchase * it.quantity)}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          <div style={{ borderTop: "1px solid #ECEAE5", paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "12px", color: "var(--ink-muted)" }}>
+                              {order.items?.length || 1} item{order.items?.length !== 1 ? "s" : ""} • Payment: {order.paymentMethod?.toUpperCase() || "COD"}
+                            </span>
+                            <Link
+                              href={`/order-confirmation?order=${order.orderId || order.id}`}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                color: "var(--nilasa-gold)"
+                              }}
+                            >
+                              <span>View Receipt</span>
+                              <ExternalLink size={12} />
+                            </Link>
+                          </div>
                         </div>
                       );
                     })}
@@ -410,185 +507,450 @@ export default function AccountPage() {
               </div>
             )}
 
-            {/* Tab 2: Profile */}
+            {/* ── SAVED ADDRESSES TAB ── */}
+            {activeTab === "addresses" && (
+              <div
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid var(--nilasa-border)",
+                  borderRadius: 14,
+                  padding: "24px"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontSize: "16px", fontWeight: 600, color: "var(--nilasa-indigo)", margin: "0 0 2px" }}>
+                      Saved Delivery Addresses
+                    </h2>
+                    <p style={{ color: "var(--ink-muted)", fontSize: "13px", margin: 0 }}>
+                      Manage addresses for rapid, one-click checkout across India.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddressForm(!showAddressForm)}
+                    className="button button--gold"
+                    style={{ fontSize: "12px", padding: "8px 16px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                  >
+                    <Plus size={14} />
+                    <span>{showAddressForm ? "Cancel" : "Add New Address"}</span>
+                  </button>
+                </div>
+
+                {addressSuccess && (
+                  <div style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", padding: "10px 14px", borderRadius: 8, color: "#065F46", fontSize: "13px", marginBottom: 16 }}>
+                    {addressSuccess}
+                  </div>
+                )}
+
+                {/* Inline Address Creation Form */}
+                {showAddressForm && (
+                  <form onSubmit={handleSaveAddress} className="address-form-box" style={{ marginBottom: 24 }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 14px", color: "#1A1D20" }}>
+                      Add New Delivery Destination
+                    </h3>
+
+                    {addressError && (
+                      <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", padding: "8px 12px", borderRadius: 6, color: "#991B1B", fontSize: "12px", marginBottom: 12 }}>
+                        {addressError}
+                      </div>
+                    )}
+
+                    <div style={{ marginBottom: 14 }}>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>Address Type</span>
+                      <div style={{ display: "flex", gap: 10 }}>
+                        {["Home", "Work", "Other"].map((lbl) => (
+                          <button
+                            key={lbl}
+                            type="button"
+                            onClick={() => setNewAddress({ ...newAddress, label: lbl })}
+                            style={{
+                              padding: "6px 14px",
+                              borderRadius: 6,
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              border: newAddress.label === lbl ? "1.5px solid var(--nilasa-gold)" : "1px solid #CBD5E1",
+                              background: newAddress.label === lbl ? "var(--nilasa-card)" : "#FFFFFF",
+                              color: newAddress.label === lbl ? "var(--nilasa-indigo)" : "#64748B",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease"
+                            }}
+                          >
+                            {lbl === "Home" ? "🏠 Home" : lbl === "Work" ? "🏢 Work" : "📍 Other"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginBottom: 14 }}>
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+                        Flat, House No., Building, Street Name *
+                        <input
+                          type="text"
+                          required
+                          value={newAddress.addressLine1}
+                          onChange={(e) => setNewAddress({ ...newAddress, addressLine1: e.target.value })}
+                          placeholder="e.g. Flat 402, Lotus Court, Civil Lines"
+                          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", marginTop: 4, fontSize: "13px" }}
+                        />
+                      </label>
+
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+                        Area, Colony, Landmark (Optional)
+                        <input
+                          type="text"
+                          value={newAddress.addressLine2 || ""}
+                          onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })}
+                          placeholder="Near City Mall"
+                          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", marginTop: 4, fontSize: "13px" }}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="address-form-grid-3">
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+                        City *
+                        <input
+                          type="text"
+                          required
+                          value={newAddress.city}
+                          onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                          placeholder="Kanpur"
+                          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", marginTop: 4, fontSize: "13px" }}
+                        />
+                      </label>
+
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+                        State *
+                        <input
+                          type="text"
+                          required
+                          value={newAddress.state}
+                          onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+                          placeholder="Uttar Pradesh"
+                          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", marginTop: 4, fontSize: "13px" }}
+                        />
+                      </label>
+
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+                        PIN Code *
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          value={newAddress.pincode}
+                          onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value.replace(/\D/g, "") })}
+                          placeholder="208001"
+                          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", marginTop: 4, fontSize: "13px" }}
+                        />
+                      </label>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                      <input
+                        type="checkbox"
+                        id="isDefaultCheck"
+                        checked={newAddress.isDefault}
+                        onChange={(e) => setNewAddress({ ...newAddress, isDefault: e.target.checked })}
+                      />
+                      <label htmlFor="isDefaultCheck" style={{ fontSize: "12px", color: "#475569", cursor: "pointer" }}>
+                        Set as primary delivery address for one-click checkout
+                      </label>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button
+                        type="submit"
+                        disabled={addressSaving}
+                        className="button button--gold"
+                        style={{ fontSize: "13px", padding: "9px 22px", display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700 }}
+                      >
+                        {addressSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        <span>{addressSaving ? "Saving..." : "Save Address"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddressForm(false)}
+                        className="button button--lavender-glass"
+                        style={{ fontSize: "13px", padding: "9px 16px" }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Addresses Grid */}
+                {addressesLoading ? (
+                  <div style={{ textAlign: "center", padding: "30px 0", color: "var(--ink-muted)" }}>
+                    <Loader2 size={24} className="animate-spin" style={{ margin: "0 auto 8px" }} />
+                    <p style={{ fontSize: "13px" }}>Loading saved addresses from server...</p>
+                  </div>
+                ) : addresses.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px 0", background: "#FAF8F5", borderRadius: 10, border: "1px dashed #D1D5DB" }}>
+                    <MapPin size={32} color="var(--nilasa-gold)" style={{ margin: "0 auto 8px", opacity: 0.8 }} />
+                    <p style={{ fontWeight: 600, color: "var(--nilasa-indigo)", margin: "0 0 4px" }}>No saved addresses</p>
+                    <p style={{ color: "#64748B", fontSize: "12px", margin: "0 0 16px" }}>
+                      Add your home or office address for fast, effortless checkout.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddressForm(true)}
+                      className="button button--gold"
+                      style={{ fontSize: "12px", padding: "7px 18px" }}
+                    >
+                      + Add First Address
+                    </button>
+                  </div>
+                ) : (
+                  <div className="address-cards-grid">
+                    {addresses.map((addr) => (
+                      <div
+                        key={addr.addressId}
+                        className={`luxury-address-card ${addr.isDefault ? "luxury-address-card--selected" : ""}`}
+                      >
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                            <span className="address-type-pill">
+                              {addr.label === "Home" ? <Home size={12} /> : addr.label === "Work" ? <Building2 size={12} /> : <MapPin size={12} />}
+                              {addr.label}
+                            </span>
+
+                            {addr.isDefault && (
+                              <span style={{ fontSize: "9px", fontWeight: 700, color: "#92400E", background: "#FEF3C7", padding: "2px 6px", borderRadius: 4 }}>
+                                PRIMARY DEFAULT
+                              </span>
+                            )}
+                          </div>
+
+                          <p style={{ margin: "0 0 3px", fontWeight: 600, color: "#1A1D20", fontSize: "13px", lineHeight: 1.4 }}>
+                            {addr.addressLine1}
+                          </p>
+                          {addr.addressLine2 && (
+                            <p style={{ margin: "0 0 3px", color: "#64748B", fontSize: "12px" }}>
+                              {addr.addressLine2}
+                            </p>
+                          )}
+                          <p style={{ margin: "0 0 12px", color: "#64748B", fontSize: "12px" }}>
+                            {addr.city}, {addr.state} - <strong>{addr.pincode}</strong>
+                          </p>
+                        </div>
+
+                        <div style={{ borderTop: "1px solid #F1EFEA", paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          {!addr.isDefault ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSetDefaultAddress(addr.addressId)}
+                              style={{ background: "none", border: "none", color: "var(--nilasa-indigo)", fontSize: "11px", fontWeight: 600, cursor: "pointer", padding: 0 }}
+                            >
+                              Make Default
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: "11px", color: "#059669", display: "inline-flex", alignItems: "center", gap: 3, fontWeight: 600 }}>
+                              <Check size={12} /> Default
+                            </span>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAddress(addr.addressId)}
+                            style={{ background: "none", border: "none", color: "#DC2626", fontSize: "11px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, padding: 0 }}
+                          >
+                            <Trash2 size={12} /> Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── PROFILE TAB ── */}
             {activeTab === "profile" && (
-              <div>
-                <h2
+              <div
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid var(--nilasa-border)",
+                  borderRadius: 14,
+                  padding: "24px"
+                }}
+              >
+                <h2 style={{ fontSize: "16px", fontWeight: 600, color: "var(--nilasa-indigo)", margin: "0 0 18px 0" }}>
+                  Account Profile Details
+                </h2>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 20 }}>
+                  <div style={{ border: "1px solid var(--nilasa-border)", padding: "14px 16px", borderRadius: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-muted)", fontSize: "12px", marginBottom: 4 }}>
+                      <User size={14} />
+                      <span>Full Name</span>
+                    </div>
+                    <strong style={{ fontSize: "14px", color: "var(--nilasa-indigo)" }}>{user?.name || "Nilasa Customer"}</strong>
+                  </div>
+
+                  <div style={{ border: "1px solid var(--nilasa-border)", padding: "14px 16px", borderRadius: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-muted)", fontSize: "12px", marginBottom: 4 }}>
+                      <Mail size={14} />
+                      <span>Email Address</span>
+                    </div>
+                    <strong style={{ fontSize: "14px", color: "var(--nilasa-indigo)" }}>{user?.email}</strong>
+                  </div>
+
+                  <div style={{ border: "1px solid var(--nilasa-border)", padding: "14px 16px", borderRadius: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-muted)", fontSize: "12px", marginBottom: 4 }}>
+                      <Phone size={14} />
+                      <span>Phone Number</span>
+                    </div>
+                    <strong style={{ fontSize: "14px", color: "var(--nilasa-indigo)" }}>{user?.phone || "Not specified"}</strong>
+                  </div>
+
+                  <div style={{ border: "1px solid var(--nilasa-border)", padding: "14px 16px", borderRadius: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-muted)", fontSize: "12px", marginBottom: 4 }}>
+                      <Calendar size={14} />
+                      <span>Member Since</span>
+                    </div>
+                    <strong style={{ fontSize: "14px", color: "var(--nilasa-indigo)" }}>
+                      {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "August 2026"}
+                    </strong>
+                  </div>
+                </div>
+
+                <div
                   style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "20px",
-                    fontWeight: 600,
-                    color: "var(--nilasa-indigo)",
-                    margin: "0 0 4px 0"
+                    backgroundColor: "var(--nilasa-card)",
+                    border: "1px solid var(--nilasa-border)",
+                    borderRadius: 8,
+                    padding: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12
                   }}
                 >
-                  Personal Profile
-                </h2>
-                <p style={{ fontSize: "13px", color: "var(--ink-muted)", margin: "0 0 24px 0" }}>
-                  Your verified identity and contact information at Nilasa.
-                </p>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ padding: "16px", backgroundColor: "var(--nilasa-ivory)", borderRadius: 8, border: "1px solid var(--nilasa-border)" }}>
-                    <div style={{ fontSize: "11px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>
-                      Full Name
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--nilasa-indigo)" }}>
-                      {user?.name}
-                    </div>
-                  </div>
-
-                  <div style={{ padding: "16px", backgroundColor: "var(--nilasa-ivory)", borderRadius: 8, border: "1px solid var(--nilasa-border)" }}>
-                    <div style={{ fontSize: "11px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>
-                      Email Address
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--nilasa-indigo)" }}>
-                      {user?.email}
-                    </div>
-                  </div>
-
-                  <div style={{ padding: "16px", backgroundColor: "var(--nilasa-ivory)", borderRadius: 8, border: "1px solid var(--nilasa-border)" }}>
-                    <div style={{ fontSize: "11px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>
-                      Contact Phone
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--nilasa-indigo)" }}>
-                      {user?.phone || "Not provided"}
-                    </div>
-                  </div>
-
-                  <div style={{ padding: "16px", backgroundColor: "var(--nilasa-ivory)", borderRadius: 8, border: "1px solid var(--nilasa-border)" }}>
-                    <div style={{ fontSize: "11px", color: "var(--ink-muted)", textTransform: "uppercase", fontWeight: 600, marginBottom: 4 }}>
-                      Account Role
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--nilasa-indigo)" }}>
-                      {user?.role || "Customer"}
-                    </div>
-                  </div>
+                  <ShieldCheck size={20} color="var(--nilasa-gold)" />
+                  <p style={{ margin: 0, fontSize: "12px", color: "var(--nilasa-indigo)", lineHeight: 1.4 }}>
+                    Your personal information is strictly protected under Nilasa Privacy Safeguards and never shared with third-party marketers.
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* Tab 3: Security */}
+            {/* ── SECURITY TAB ── */}
             {activeTab === "security" && (
-              <div>
-                <h2
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "20px",
-                    fontWeight: 600,
-                    color: "var(--nilasa-indigo)",
-                    margin: "0 0 4px 0"
-                  }}
-                >
-                  Security & Password
+              <div
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid var(--nilasa-border)",
+                  borderRadius: 14,
+                  padding: "24px"
+                }}
+              >
+                <h2 style={{ fontSize: "16px", fontWeight: 600, color: "var(--nilasa-indigo)", margin: "0 0 6px 0" }}>
+                  Account Security
                 </h2>
-                <p style={{ fontSize: "13px", color: "var(--ink-muted)", margin: "0 0 24px 0" }}>
-                  Ensure your account is protected with a secure password.
+                <p style={{ fontSize: "13px", color: "var(--ink-muted)", margin: "0 0 20px 0" }}>
+                  Ensure your account is protected with a strong, distinct password.
                 </p>
 
                 {passwordSuccess && (
                   <div
                     style={{
-                      backgroundColor: "#EDF7F2",
-                      color: "#156E45",
-                      border: "1px solid #BEE3D1",
-                      padding: "12px 14px",
-                      borderRadius: 6,
+                      backgroundColor: "#ECFDF5",
+                      border: "1px solid #A7F3D0",
+                      color: "#065F46",
+                      padding: "12px 16px",
+                      borderRadius: 8,
                       fontSize: "13px",
                       display: "flex",
                       alignItems: "center",
                       gap: 8,
-                      marginBottom: 20
+                      marginBottom: 16
                     }}
                   >
-                    <CheckCircle2 size={16} />
-                    <span>Your account password has been updated successfully.</span>
+                    <CheckCircle2 size={16} color="#059669" />
+                    <span>Your password has been changed successfully.</span>
                   </div>
                 )}
 
                 {passwordError && (
                   <div
                     style={{
-                      backgroundColor: "#FDF0EE",
-                      color: "var(--status-danger)",
-                      border: "1px solid #F8C8C3",
-                      padding: "12px 14px",
-                      borderRadius: 6,
+                      backgroundColor: "#FEF2F2",
+                      border: "1px solid #FECACA",
+                      color: "#991B1B",
+                      padding: "12px 16px",
+                      borderRadius: 8,
                       fontSize: "13px",
                       display: "flex",
                       alignItems: "center",
                       gap: 8,
-                      marginBottom: 20
+                      marginBottom: 16
                     }}
                   >
-                    <AlertCircle size={16} strokeWidth={2} />
+                    <AlertCircle size={16} color="#DC2626" />
                     <span>{passwordError}</span>
                   </div>
                 )}
 
-                <form onSubmit={handlePasswordChange} style={{ maxWidth: 400, display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-primary)", marginBottom: 6 }}>
-                      Current Password *
+                <form onSubmit={handlePasswordChange} style={{ maxWidth: 440 }}>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--nilasa-indigo)", marginBottom: 4 }}>
+                      Current Password
                     </label>
                     <input
                       type="password"
-                      required
-                      placeholder="Enter current password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
+                      required
+                      placeholder="••••••••"
                       style={{
                         width: "100%",
-                        height: 40,
-                        padding: "0 12px",
+                        padding: "10px 12px",
                         borderRadius: 6,
                         border: "1px solid var(--nilasa-border)",
-                        fontSize: "14px",
-                        backgroundColor: "var(--nilasa-ivory)"
+                        fontSize: "13px"
                       }}
                     />
                   </div>
 
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-primary)", marginBottom: 6 }}>
-                      New Password (Min 8 Characters) *
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--nilasa-indigo)", marginBottom: 4 }}>
+                      New Password (min. 8 characters)
                     </label>
                     <input
                       type="password"
-                      required
-                      placeholder="Enter new password (8+ chars)"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      placeholder="••••••••"
                       style={{
                         width: "100%",
-                        height: 40,
-                        padding: "0 12px",
+                        padding: "10px 12px",
                         borderRadius: 6,
                         border: "1px solid var(--nilasa-border)",
-                        fontSize: "14px",
-                        backgroundColor: "var(--nilasa-ivory)"
+                        fontSize: "13px"
                       }}
                     />
                   </div>
 
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-primary)", marginBottom: 6 }}>
-                      Confirm New Password *
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--nilasa-indigo)", marginBottom: 4 }}>
+                      Confirm New Password
                     </label>
                     <input
                       type="password"
-                      required
-                      placeholder="Confirm new password"
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      placeholder="••••••••"
                       style={{
                         width: "100%",
-                        height: 40,
-                        padding: "0 12px",
+                        padding: "10px 12px",
                         borderRadius: 6,
                         border: "1px solid var(--nilasa-border)",
-                        fontSize: "14px",
-                        backgroundColor: "var(--nilasa-ivory)"
+                        fontSize: "13px"
                       }}
                     />
                   </div>
@@ -596,21 +958,10 @@ export default function AccountPage() {
                   <button
                     type="submit"
                     disabled={passwordLoading}
-                    style={{
-                      backgroundColor: "var(--nilasa-indigo)",
-                      color: "#FFFFFF",
-                      border: "none",
-                      borderRadius: 6,
-                      height: 42,
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      letterSpacing: "0.05em",
-                      textTransform: "uppercase",
-                      cursor: passwordLoading ? "not-allowed" : "pointer",
-                      marginTop: 6
-                    }}
+                    className="button button--gold"
+                    style={{ fontSize: "13px", padding: "10px 24px" }}
                   >
-                    {passwordLoading ? "Updating..." : "Update Password"}
+                    {passwordLoading ? "Updating Password..." : "Update Password"}
                   </button>
                 </form>
               </div>

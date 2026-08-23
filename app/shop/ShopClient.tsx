@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Product, Category, FilterOptions, ProductFilterParams } from "@/lib/types";
-import { fetchProductsWithFilters, fetchProductFilters } from "@/lib/api";
+import { fetchProductsWithFilters, fetchProductFilters } from "@/lib/dotnet-backend";
 import { ProductCard } from "@/components/ProductCard";
 import {
   SlidersHorizontal,

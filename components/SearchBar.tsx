@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Product, searchProducts, formatPrice, getProductImage } from "@/lib/catalog";
-import { fetchPublishedProducts } from "@/lib/api";
+import { fetchPublishedProducts } from "@/lib/dotnet-backend";
 import { Search, X, ArrowRight, Sparkles, ShoppingBag, ArrowUpRight, TrendingUp } from "lucide-react";
 
 const QUICK_SEARCH_CHIPS = [

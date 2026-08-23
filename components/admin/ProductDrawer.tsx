@@ -12,7 +12,7 @@ import {
   createProductVariant,
   updateProductVariant,
   deleteProductVariant
-} from "@/lib/api";
+} from "@/lib/dotnet-backend";
 import { resolveProductImageUrl } from "@/lib/catalog";
 import {
   Camera,

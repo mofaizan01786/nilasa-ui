@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import { Category } from "@/lib/types";
 import { AdminDrawer } from "./AdminDrawer";
-import { createCategory, updateCategory } from "@/lib/api";
+import { createCategory, updateCategory } from "@/lib/dotnet-backend";
 import { AlertCircle } from "lucide-react";
 
 interface CategoryDrawerProps {

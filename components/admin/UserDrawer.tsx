@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import { User, CreateUserPayload } from "@/lib/types";
 import { AdminDrawer } from "./AdminDrawer";
-import { createUserAdmin, updateUserRoleAdmin, resetUserPasswordAdmin } from "@/lib/api";
+import { createUserAdmin, updateUserRoleAdmin, resetUserPasswordAdmin } from "@/lib/dotnet-backend";
 import { AlertCircle, KeyRound, Shield, CheckCircle2 } from "lucide-react";
 
 interface UserDrawerProps {

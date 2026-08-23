@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { loginBackend } from "@/lib/api";
+import { loginBackend } from "@/lib/dotnet-backend";
 import { ShieldCheck, AlertCircle } from "lucide-react";
 
 function LoginForm() {

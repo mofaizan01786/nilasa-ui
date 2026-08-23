@@ -126,6 +126,8 @@ export interface CouponValidationResult {
   discountType: string;
   discountAmount: number;
   payableAmount: number;
+  isValid?: boolean;
+  message?: string;
 }
 
 // ─── Orders ─────────────────────────────────────────────
@@ -176,7 +178,42 @@ export interface Order {
   updatedAt?: string;
 }
 
-// ─── Addresses (customer form, not from API list yet) ───
+// ─── Delivery Addresses (Authoritative .NET API) ──────────
+
+export interface SavedAddress {
+  addressId: number;
+  userId: number;
+  label: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  isDefault: boolean;
+}
+
+export interface CreateAddressPayload {
+  label?: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  country?: string;
+  isDefault?: boolean;
+}
+
+export interface UpdateAddressPayload {
+  label?: string;
+  addressLine1?: string;
+  addressLine2?: string | null;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  country?: string;
+  isDefault?: boolean;
+}
 
 export interface ShippingAddress {
   name: string;
@@ -382,8 +419,19 @@ export interface CreateOrderItemPayload {
   quantity: number;
 }
 
+export interface BackendShippingAddressDto {
+  label?: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  country?: string;
+}
+
 export interface CreateBackendOrderPayload {
-  addressId: number;
+  addressId?: number | null;
+  shippingAddress?: BackendShippingAddressDto | ShippingAddress | null;
   items: CreateOrderItemPayload[];
 }
 
@@ -434,11 +482,18 @@ export interface AuthoritativePaymentDto {
 
 export interface AuthoritativeOrderDetailsDto {
   orderId: number;
+  id?: number;
   userId: number;
   addressId: number;
   status: OrderStatus;
   totalAmount: number;
   placedAt: string;
+  createdAt?: string;
+  shippingAddress?: ShippingAddress;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  discountApplied?: number;
+  couponCode?: string;
   items: AuthoritativeOrderItemDto[];
   payment?: AuthoritativePaymentDto | null;
 }

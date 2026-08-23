@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { BannersConfig } from "@/lib/types";
-import { fetchBannersConfig, saveBannersConfig } from "@/lib/api";
+import { fetchBannersConfig, saveBannersConfig } from "@/lib/dotnet-backend";
 import {
   Sparkles,
   Save,

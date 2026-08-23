@@ -7,7 +7,7 @@ import {
   NavigationSubLink,
   NavigationPromoCard
 } from "@/lib/types";
-import { fetchNavigationConfig, saveNavigationConfig } from "@/lib/api";
+import { fetchNavigationConfig, saveNavigationConfig } from "@/lib/dotnet-backend";
 import {
   Compass,
   Plus,

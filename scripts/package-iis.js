@@ -53,10 +53,98 @@ if (fs.existsSync(dataDir)) {
   copyDirRecursive(dataDir, path.join(distDir, 'data'));
 }
 
-// Copy web.config and .env
+// Ensure web.config is included for IIS/iisnode
+const webConfigXml = `<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <defaultDocument>
+      <files>
+        <clear />
+        <add value="server.js" />
+      </files>
+    </defaultDocument>
+
+    <handlers>
+      <add name="iisnode" path="server.js" verb="*" modules="iisnode" />
+    </handlers>
+
+    <iisnode
+      nodeProcessCommandLine="node.exe"
+      maxConcurrentRequestsPerProcess="1024"
+      maxNamedPipeConnectionRetry="100"
+      namedPipeConnectionRetryDelay="250"
+      devErrorsEnabled="true"
+      loggingEnabled="true"
+      logDirectory="iisnode"
+      watchedFiles="web.config;*.js"
+    />
+
+    <rewrite>
+      <rules>
+        <rule name="ExistingFiles" stopProcessing="true">
+          <match url=".*" />
+          <conditions>
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" />
+          </conditions>
+          <action type="None" />
+        </rule>
+
+        <rule name="StaticChunks" stopProcessing="true">
+          <match url="^_next/static/(.*)$" />
+          <action type="Rewrite" url=".next/static/{R:1}" />
+        </rule>
+
+        <rule name="PublicAssets" stopProcessing="true">
+          <match url="^([^/]+(\.(jpg|jpeg|png|gif|svg|webp|ico|txt|xml|woff|woff2|ttf|css|js)))$" />
+          <conditions>
+            <add input="{DOCUMENT_ROOT}\\public\\{R:1}" matchType="IsFile" />
+          </conditions>
+          <action type="Rewrite" url="public/{R:1}" />
+        </rule>
+
+        <rule name="DynamicRoutes">
+          <conditions>
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True" />
+          </conditions>
+          <action type="Rewrite" url="server.js" />
+        </rule>
+      </rules>
+    </rewrite>
+
+    <staticContent>
+      <remove fileExtension=".json" />
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <remove fileExtension=".jpg" />
+      <mimeMap fileExtension=".jpg" mimeType="image/jpeg" />
+      <remove fileExtension=".jpeg" />
+      <mimeMap fileExtension=".jpeg" mimeType="image/jpeg" />
+      <remove fileExtension=".png" />
+      <mimeMap fileExtension=".png" mimeType="image/png" />
+      <remove fileExtension=".PNG" />
+      <mimeMap fileExtension=".PNG" mimeType="image/png" />
+      <remove fileExtension=".webp" />
+      <mimeMap fileExtension=".webp" mimeType="image/webp" />
+      <remove fileExtension=".svg" />
+      <mimeMap fileExtension=".svg" mimeType="image/svg+xml" />
+      <remove fileExtension=".ico" />
+      <mimeMap fileExtension=".ico" mimeType="image/x-icon" />
+      <remove fileExtension=".woff" />
+      <mimeMap fileExtension=".woff" mimeType="font/woff" />
+      <remove fileExtension=".woff2" />
+      <mimeMap fileExtension=".woff2" mimeType="font/woff2" />
+    </staticContent>
+
+    <httpErrors existingResponse="PassThrough" />
+  </system.webServer>
+</configuration>
+`;
+
 if (fs.existsSync(path.join(rootDir, 'web.config'))) {
   fs.copyFileSync(path.join(rootDir, 'web.config'), path.join(distDir, 'web.config'));
+} else {
+  fs.writeFileSync(path.join(distDir, 'web.config'), webConfigXml, 'utf8');
 }
+
 if (fs.existsSync(path.join(rootDir, '.env'))) {
   fs.copyFileSync(path.join(rootDir, '.env'), path.join(distDir, '.env'));
 }

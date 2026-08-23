@@ -6,12 +6,7 @@ import { LogOut } from "lucide-react";
 export function AdminLogoutButton() {
   const router = useRouter();
 
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch {
-      // Ignore
-    }
+  function handleLogout() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("nilasa-auth-token");
       document.cookie = "nilasa_session=; path=/; max-age=0";

@@ -3,7 +3,7 @@ import { Product } from "./types";
 export type { Product };
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "https://nilasabackend.geecera.com/api/v1";
 
 export const CATEGORIES = [
   { slug: "suits", name: "Suits", description: "Tailored suit sets with ornate zari & embroidery details.", icon: "suit" },

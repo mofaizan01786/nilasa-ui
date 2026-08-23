@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToBag } from "@/components/AddToBag";
 import { ProductGallery } from "@/components/ProductGallery";
-import { fetchPublishedProducts, fetchProductBySlug } from "@/lib/api";
+import { fetchPublishedProducts, fetchProductBySlug } from "@/lib/dotnet-backend";
 import { formatPrice, getProductImage } from "@/lib/catalog";
 
 export const revalidate = 3600; // ISR cache strategy

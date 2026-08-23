@@ -1585,6 +1585,7 @@ img {
   text-decoration: none;
   flex-shrink: 0;
   white-space: nowrap;
+  position: relative;
 }
 
 .wishlist-link:hover,
@@ -1598,29 +1599,31 @@ img {
   color: #FFFFFF;
   min-width: 20px;
   height: 20px;
-  padding: 0 4px;
-  border-radius: 50%;
-  display: flex;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.68rem;
+  font-size: 0.70rem;
   font-weight: 700;
   font-family: var(--font-mono), monospace;
+  line-height: 1;
 }
 
 .cart-count {
-  background: var(--nilasa-indigo);
-  color: var(--nilasa-gold-light);
+  background: #354232;
+  color: #FFFFFF;
   min-width: 20px;
   height: 20px;
-  padding: 0 4px;
-  border-radius: 50%;
-  display: flex;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.68rem;
+  font-size: 0.70rem;
   font-weight: 700;
   font-family: var(--font-mono), monospace;
+  line-height: 1;
 }
 
 .admin-header-link {
@@ -4790,25 +4793,6 @@ button, a, input, select, textarea {
    MOBILE THEME STYLING (LAVENDER BOTANICAL & 2-COL LUXURY STOREFRONT)
    ========================================================================== */
 
-/* Cart badge on mobile & desktop header */
-.cart-count {
-  position: absolute;
-  top: -4px;
-  right: -6px;
-  background: #8E6EA8 !important; /* Soft royal lavender */
-  color: #FFFFFF !important;
-  font-size: 0.65rem !important;
-  font-weight: 700 !important;
-  min-width: 17px;
-  height: 17px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  border: 1.5px solid #FFFFFF;
-}
-
 /* Dedicated Mobile Search Bar Row (Compact & Sleek) */
 .mobile-search-bar-row {
   display: none;
@@ -5626,6 +5610,92 @@ button, a, input, select, textarea {
     font-style: italic !important;
     margin-top: 10px !important;
     color: #888888 !important;
+  }
+}
+
+/* ==========================================================================
+   LUXURY ADDRESS MANAGER & SELECTOR (CHECKOUT & ACCOUNT)
+   ========================================================================== */
+.address-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.luxury-address-card {
+  border: 1.5px solid var(--nilasa-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.luxury-address-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.luxury-address-card--selected {
+  border-color: var(--nilasa-gold) !important;
+  background: #FFFDF9 !important;
+  box-shadow: 0 0 0 1px var(--nilasa-gold), 0 4px 16px rgba(184, 134, 11, 0.08);
+}
+
+.address-type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--nilasa-card);
+  color: var(--nilasa-indigo);
+}
+
+.address-form-box {
+  background: #FAF8F5;
+  border: 1px solid #EAE5D9;
+  border-radius: 14px;
+  padding: 24px;
+  margin-top: 12px;
+}
+
+.address-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.address-form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .address-cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .address-form-grid-2,
+  .address-form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .account-layout-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .checkout-main-form {
+    padding: 20px 16px;
   }
 }
 

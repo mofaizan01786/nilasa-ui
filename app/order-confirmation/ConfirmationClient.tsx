@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { formatPrice } from "@/lib/catalog";
-import { fetchOrderByIdAuthoritative } from "@/lib/api";
+import { fetchOrderByIdAuthoritative } from "@/lib/dotnet-backend";
 import { AuthoritativeOrderDetailsDto } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
 import {
@@ -16,18 +16,22 @@ import {
   Sparkles,
   Package,
   Clock,
+  Banknote,
   AlertTriangle,
   RefreshCw,
   XCircle,
-  Loader2
+  Loader2,
+  MapPin,
+  Phone,
+  Mail
 } from "lucide-react";
 
 export function ConfirmationClient() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { user, token } = useAuth();
 
   const rawOrderId = searchParams.get("order");
+  const methodParam = searchParams.get("method")?.toLowerCase() || "";
   const parsedOrderId = rawOrderId ? parseInt(rawOrderId.replace(/\D/g, ""), 10) : null;
 
   const [order, setOrder] = useState<AuthoritativeOrderDetailsDto | null>(null);
@@ -60,7 +64,7 @@ export function ConfirmationClient() {
           setOrder(orderData);
           setError(null);
         } else {
-          setError("Unable to retrieve order records from backend.");
+          setError("Unable to retrieve order records.");
         }
       } catch (err: any) {
         setError(err.message || "Failed to connect to order confirmation service.");
@@ -83,19 +87,25 @@ export function ConfirmationClient() {
     : "NIL-104825";
 
   const totalPaid = order ? Number(order.totalAmount) : 0;
+  const address = order?.shippingAddress;
+
+  const isCod =
+    methodParam === "cod" ||
+    order?.paymentMethod === "cod" ||
+    order?.payment?.gatewayTransactionId === "COD-PENDING";
+
   const isConfirmed =
     order?.status?.toLowerCase() === "confirmed" ||
     order?.status?.toLowerCase() === "delivered" ||
     order?.status?.toLowerCase() === "shipped" ||
-    order?.payment?.status === "Success";
-  const isPending =
-    order?.status?.toLowerCase() === "pending" &&
-    order?.payment?.status !== "Success";
+    order?.payment?.status === "Success" ||
+    methodParam === "razorpay";
+
   const isFailed =
     order?.status?.toLowerCase() === "cancelled" ||
     order?.payment?.status === "Failed";
 
-  const orderDate = order?.placedAt ? new Date(order.placedAt) : new Date();
+  const orderDate = order?.placedAt || order?.createdAt ? new Date(order.placedAt || order.createdAt!) : new Date();
   const formattedOrderDate = orderDate.toLocaleDateString("en-IN", {
     month: "long",
     day: "numeric",
@@ -119,7 +129,7 @@ export function ConfirmationClient() {
     year: "numeric"
   });
 
-  const customerName = user?.name || "Valued Customer";
+  const customerName = address?.name || user?.name || "Valued Customer";
 
   // Loading skeleton
   if (loading) {
@@ -140,7 +150,7 @@ export function ConfirmationClient() {
           style={{ margin: "0 auto 16px" }}
         />
         <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem" }}>
-          Retrieving Authoritative Order Details...
+          Retrieving Order Details...
         </h2>
         <p style={{ color: "#64748B", fontSize: "0.88rem" }}>
           Connecting to Nilasa secure verification service
@@ -184,7 +194,7 @@ export function ConfirmationClient() {
           Order Payment Failed
         </h1>
         <p style={{ color: "#64748B", fontSize: "0.95rem", maxWidth: 520, margin: "0 auto 28px" }}>
-          The payment transaction for Order #{formattedOrderId} was cancelled or declined by your bank. Your shopping bag has been preserved.
+          The payment transaction for Order #{formattedOrderId} was cancelled or declined. Your shopping bag has been preserved.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
           <Link href="/checkout" className="button button--gold">
@@ -212,7 +222,12 @@ export function ConfirmationClient() {
             <h2 className="print-invoice-heading">TAX INVOICE / RECEIPT</h2>
             <p><strong>Order #:</strong> #{formattedOrderId}</p>
             <p><strong>Date:</strong> {formattedOrderDate}</p>
-            <p><strong>Status:</strong> <span className="print-badge-paid">{isConfirmed ? "CONFIRMED & PAID" : "PENDING"}</span></p>
+            <p>
+              <strong>Status:</strong>{" "}
+              <span className={isCod ? "print-badge-pending" : "print-badge-paid"}>
+                {isCod ? "CASH ON DELIVERY (PENDING ARRIVAL)" : "CONFIRMED & PAID"}
+              </span>
+            </p>
           </div>
         </div>
         <div className="print-divider" />
@@ -220,7 +235,37 @@ export function ConfirmationClient() {
 
       {/* ── SCREEN-ONLY CELEBRATION / STATUS HEADER ── */}
       <div className="confirmation-header no-print" style={{ textAlign: "center", marginBottom: 28 }}>
-        {isConfirmed ? (
+        {isCod ? (
+          /* COD Success View */
+          <>
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)",
+                border: "2px solid #10B981",
+                color: "#047857",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 16
+              }}
+            >
+              <Banknote size={34} strokeWidth={2.2} />
+            </div>
+            <span className="eyebrow eyebrow--gold" style={{ display: "block", marginBottom: 6 }}>
+              CASH ON DELIVERY ORDER REGISTERED
+            </span>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "var(--fs-h1)", margin: "4px 0 10px", color: "#1A1D20" }}>
+              Thank you for your order, {customerName}!
+            </h1>
+            <p className="confirmation-subtitle" style={{ color: "#64748B", fontSize: "0.95rem", maxWidth: 520, margin: "0 auto" }}>
+              Your Cash on Delivery order #{formattedOrderId} has been confirmed. Please keep exact cash of <strong>{formatPrice(totalPaid)}</strong> ready at the time of delivery.
+            </p>
+          </>
+        ) : isConfirmed ? (
+          /* Online Payment Verified View */
           <>
             <div
               style={{
@@ -239,16 +284,17 @@ export function ConfirmationClient() {
               <CheckCircle2 size={36} strokeWidth={2.2} />
             </div>
             <span className="eyebrow eyebrow--gold" style={{ display: "block", marginBottom: 6 }}>
-              ORDER CONFIRMED & DISPATCH PREPARED
+              PAYMENT VERIFIED & DISPATCH PREPARED
             </span>
             <h1 style={{ fontFamily: "var(--font-display)", fontSize: "var(--fs-h1)", margin: "4px 0 10px", color: "#1A1D20" }}>
               Thank you for choosing Nilasa, {customerName}.
             </h1>
             <p className="confirmation-subtitle" style={{ color: "#64748B", fontSize: "0.95rem", maxWidth: 520, margin: "0 auto" }}>
-              Your order has been verified on our secure servers and forwarded to our master artisans for inspection, steam pressing, and luxury botanical gift packaging.
+              Your payment has been securely verified and forwarded to our master artisans for inspection, steam pressing, and luxury botanical gift packaging.
             </p>
           </>
         ) : (
+          /* Verification Pending View */
           <>
             <div
               style={{
@@ -273,7 +319,7 @@ export function ConfirmationClient() {
               Order #{formattedOrderId} Received
             </h1>
             <p className="confirmation-subtitle" style={{ color: "#64748B", fontSize: "0.95rem", maxWidth: 520, margin: "0 auto" }}>
-              We are awaiting final bank clearance. If you completed payment via UPI or Net Banking, confirmation will update automatically.
+              We are awaiting final bank confirmation. If you completed payment via UPI or Net Banking, status will update automatically.
             </p>
             <div style={{ marginTop: 14 }}>
               <button
@@ -291,21 +337,52 @@ export function ConfirmationClient() {
         )}
       </div>
 
-      {/* ── PRINT-ONLY CUSTOMER & BILLING INFO ── */}
-      <div className="print-only-customer-grid">
-        <div className="print-customer-col">
-          <span className="print-section-label">CUSTOMER DETAILS</span>
-          <p className="print-customer-name">{customerName}</p>
-          <p className="print-meta-text">Pan-India Express Priority Delivery</p>
+      {/* ── CUSTOMER & SHIPPING ADDRESS (PRINT + SCREEN) ── */}
+      <div className="print-only-customer-grid" style={{ marginBottom: 20 }}>
+        <div className="print-customer-col" style={{ background: "#FAF8F5", padding: "14px 18px", borderRadius: 8, border: "1px solid #ECE7F2" }}>
+          <span className="print-section-label" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", fontWeight: 700, color: "#64748B", marginBottom: 8, textTransform: "uppercase" }}>
+            <MapPin size={13} color="var(--nilasa-indigo)" /> Delivery Destination
+          </span>
+          <p className="print-customer-name" style={{ margin: "0 0 4px", fontWeight: 700, color: "#1A1D20", fontSize: "0.95rem" }}>
+            {customerName}
+          </p>
+          {address ? (
+            <>
+              <p style={{ margin: "0 0 2px", color: "#475569", fontSize: "0.86rem" }}>{address.address}</p>
+              <p style={{ margin: "0 0 4px", color: "#475569", fontSize: "0.86rem" }}>
+                {address.city}, {address.state} - {address.postalCode}
+              </p>
+              <p style={{ margin: "6px 0 0", color: "#2563EB", fontSize: "0.82rem", fontFamily: "var(--font-mono)" }}>
+                📞 {address.phone} {address.email ? `• ✉️ ${address.email}` : ""}
+              </p>
+            </>
+          ) : (
+            <p className="print-meta-text" style={{ margin: 0, color: "#64748B", fontSize: "0.85rem" }}>
+              Pan-India Express Priority Delivery
+            </p>
+          )}
         </div>
-        <div className="print-customer-col">
-          <span className="print-section-label">PAYMENT & DISPATCH</span>
-          <p className="print-meta-text"><strong>Status:</strong> {order?.status || "Pending"}</p>
-          <p className="print-meta-text"><strong>Est. Arrival:</strong> {deliveryStart} – {deliveryEnd}</p>
+
+        <div className="print-customer-col" style={{ background: "#FAF8F5", padding: "14px 18px", borderRadius: 8, border: "1px solid #ECE7F2" }}>
+          <span className="print-section-label" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", fontWeight: 700, color: "#64748B", marginBottom: 8, textTransform: "uppercase" }}>
+            <Package size={13} color="var(--nilasa-indigo)" /> Dispatch & Billing
+          </span>
+          <p className="print-meta-text" style={{ margin: "0 0 4px", fontSize: "0.86rem", color: "#475569" }}>
+            <strong>Payment Method:</strong> {isCod ? "Cash on Delivery (COD)" : "Online Payment (Razorpay)"}
+          </p>
+          <p className="print-meta-text" style={{ margin: "0 0 4px", fontSize: "0.86rem", color: "#475569" }}>
+            <strong>Payment Status:</strong>{" "}
+            <span style={{ fontWeight: 700, color: isCod ? "#D97706" : "#047857" }}>
+              {isCod ? "Pending (Pay on Arrival)" : "Success (Verified)"}
+            </span>
+          </p>
+          <p className="print-meta-text" style={{ margin: "0 0 4px", fontSize: "0.86rem", color: "#475569" }}>
+            <strong>Est. Delivery:</strong> {deliveryStart} – {deliveryEnd}
+          </p>
         </div>
       </div>
 
-      {/* ── ORDER STATUS DETAILS BOX (SCREEN + PRINT) ── */}
+      {/* ── ORDER STATUS DETAILS SUMMARY BOX (SCREEN + PRINT) ── */}
       <div className="order-details-box">
         <div className="order-detail-column">
           <span className="detail-label">Order Reference</span>
@@ -314,13 +391,13 @@ export function ConfirmationClient() {
 
         <div className="order-detail-column">
           <span className="detail-label">Total Amount</span>
-          <strong className="detail-value price">{formatPrice(totalPaid || 4990)}</strong>
+          <strong className="detail-value price">{formatPrice(totalPaid)}</strong>
         </div>
 
         <div className="order-detail-column">
-          <span className="detail-label">Order Status</span>
-          <span className="detail-value-sub" style={{ textTransform: "capitalize", fontWeight: 700, color: isConfirmed ? "#047857" : "#D97706" }}>
-            {order?.status || "Confirmed"}
+          <span className="detail-label">Payment Method</span>
+          <span className="detail-value-sub" style={{ fontWeight: 700, color: isCod ? "#D97706" : "#047857" }}>
+            {isCod ? "Cash on Delivery (COD)" : "Online (Verified)"}
           </span>
         </div>
 
@@ -330,19 +407,19 @@ export function ConfirmationClient() {
         </div>
       </div>
 
-      {/* ── ORDER ITEMS BREAKDOWN TABLE (AUTHORITATIVE BACKEND DATA) ── */}
+      {/* ── REAL ORDERED ITEMS TABLE ── */}
       {order && order.items && order.items.length > 0 && (
         <div style={{ margin: "20px 0 28px" }}>
           <h3 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1A1D20", marginBottom: 12 }}>
-            Ordered Items ({order.items.length})
+            Ordered Garment Pieces ({order.items.length})
           </h3>
-          <table className="admin-table" style={{ background: "#FFFFFF", borderRadius: 8, border: "1px solid #ECE7F2" }}>
+          <table className="admin-table" style={{ background: "#FFFFFF", borderRadius: 8, border: "1px solid #ECE7F2", width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "#FAF8F5" }}>
-                <th style={{ padding: "10px 14px", fontSize: "0.78rem", textAlign: "left" }}>Garment Piece</th>
-                <th style={{ padding: "10px 14px", fontSize: "0.78rem", textAlign: "center" }}>Qty</th>
-                <th style={{ padding: "10px 14px", fontSize: "0.78rem", textAlign: "right" }}>Price</th>
-                <th style={{ padding: "10px 14px", fontSize: "0.78rem", textAlign: "right" }}>Subtotal</th>
+              <tr style={{ background: "#FAF8F5", borderBottom: "1px solid #ECE7F2" }}>
+                <th style={{ padding: "10px 14px", fontSize: "0.78rem", textAlign: "left", color: "#475569" }}>Item Description</th>
+                <th style={{ padding: "10px 14px", fontSize: "0.78rem", textAlign: "center", color: "#475569" }}>Qty</th>
+                <th style={{ padding: "10px 14px", fontSize: "0.78rem", textAlign: "right", color: "#475569" }}>Unit Price</th>
+                <th style={{ padding: "10px 14px", fontSize: "0.78rem", textAlign: "right", color: "#475569" }}>Total</th>
               </tr>
             </thead>
             <tbody>
@@ -356,18 +433,38 @@ export function ConfirmationClient() {
                       {item.size ? `Size: ${item.size}` : ""} {item.sku ? `• SKU: ${item.sku}` : ""}
                     </span>
                   </td>
-                  <td style={{ padding: "12px 14px", textAlign: "center", fontSize: "0.85rem" }}>
+                  <td style={{ padding: "12px 14px", textAlign: "center", fontSize: "0.85rem", color: "#1A1D20" }}>
                     {item.quantity}
                   </td>
-                  <td style={{ padding: "12px 14px", textAlign: "right", fontSize: "0.85rem" }}>
+                  <td style={{ padding: "12px 14px", textAlign: "right", fontSize: "0.85rem", color: "#475569" }}>
                     {formatPrice(item.priceAtPurchase)}
                   </td>
-                  <td style={{ padding: "12px 14px", textAlign: "right", fontSize: "0.88rem", fontWeight: 700 }}>
+                  <td style={{ padding: "12px 14px", textAlign: "right", fontSize: "0.88rem", fontWeight: 700, color: "#1A1D20" }}>
                     {formatPrice(item.priceAtPurchase * item.quantity)}
                   </td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              {order.discountApplied && order.discountApplied > 0 ? (
+                <tr style={{ borderTop: "1px solid #ECE7F2", background: "#FAF8FD" }}>
+                  <td colSpan={3} style={{ padding: "10px 14px", textAlign: "right", fontSize: "0.85rem", color: "#7C5999", fontWeight: 600 }}>
+                    Promotional Discount Applied:
+                  </td>
+                  <td style={{ padding: "10px 14px", textAlign: "right", fontSize: "0.85rem", color: "#7C5999", fontWeight: 700 }}>
+                    -{formatPrice(order.discountApplied)}
+                  </td>
+                </tr>
+              ) : null}
+              <tr style={{ borderTop: "1px solid #ECE7F2", background: "#FAF8F5" }}>
+                <td colSpan={3} style={{ padding: "12px 14px", textAlign: "right", fontSize: "0.95rem", fontWeight: 700, color: "#1A1D20" }}>
+                  Grand Total:
+                </td>
+                <td style={{ padding: "12px 14px", textAlign: "right", fontSize: "1.05rem", fontWeight: 700, color: "var(--nilasa-indigo)" }}>
+                  {formatPrice(totalPaid)}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
@@ -415,7 +512,7 @@ export function ConfirmationClient() {
           </div>
         </div>
         <p className="print-footer-bottom">
-          This is a computer-generated digital order receipt verified by Nilasa backend service.
+          This is an authentic computer-generated digital order receipt issued by Nilasa.
         </p>
       </div>
 

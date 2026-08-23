@@ -1,4 +1,4 @@
-import { fetchCategories } from "@/lib/api";
+import { fetchCategories } from "@/lib/dotnet-backend";
 import { AdminCategoriesClient } from "@/components/admin/AdminCategoriesClient";
 
 export const dynamic = "force-dynamic"; // SSR page for fresh category data

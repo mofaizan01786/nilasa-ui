@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import { Coupon, DiscountType } from "@/lib/types";
 import { AdminDrawer } from "./AdminDrawer";
-import { createCoupon, updateCoupon } from "@/lib/api";
+import { createCoupon, updateCoupon } from "@/lib/dotnet-backend";
 import { AlertCircle } from "lucide-react";
 
 interface CouponDrawerProps {

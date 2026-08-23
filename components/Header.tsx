@@ -8,7 +8,7 @@ import { useCart } from "@/components/CartProvider";
 import { useWishlist } from "@/components/WishlistProvider";
 import { useAuth } from "@/components/AuthProvider";
 import { SearchBar } from "@/components/SearchBar";
-import { fetchNavigationConfig, fetchBannersConfig } from "@/lib/api";
+import { fetchNavigationConfig, fetchBannersConfig } from "@/lib/dotnet-backend";
 import { NavigationMenuItem, AnnouncementBarConfig } from "@/lib/types";
 import { Menu, X, ShoppingBag, Heart, User as UserIcon, ChevronDown, ChevronRight, ArrowRight, Search } from "lucide-react";
 
@@ -17,6 +17,7 @@ export function Header() {
   const { count: wishlistCount } = useWishlist();
   const { user, isAuthenticated } = useAuth();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -32,6 +33,10 @@ export function Header() {
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const firstName = user?.name ? user.name.split(" ")[0] : "Account";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch dynamic navigation & banner config
   useEffect(() => {
@@ -323,14 +328,14 @@ export function Header() {
               <Link href="/wishlist" className="wishlist-link desktop-only-link" aria-label={`Wishlist (${wishlistCount} items)`} title="My Wishlist">
                 <Heart size={20} strokeWidth={1.9} />
                 <span className="wishlist-link-text">Wishlist</span>
-                {wishlistCount > 0 && <span className="wishlist-count">{wishlistCount}</span>}
+                {mounted && wishlistCount > 0 && <span className="wishlist-count">{wishlistCount}</span>}
               </Link>
 
               {/* Shopping Bag Button with Counter Badge */}
               <Link href="/cart" className="cart-link" aria-label={`Shopping Bag (${cartCount} items)`}>
                 <ShoppingBag size={20} strokeWidth={1.9} />
                 <span className="cart-link-text">Bag</span>
-                {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
+                {mounted && cartCount > 0 && <span className="cart-count">{cartCount}</span>}
               </Link>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { Order, OrderItem } from "@/lib/types";
 import { AdminDrawer } from "./AdminDrawer";
 import { formatPrice } from "@/lib/catalog";
 import { OrderStatusBadge } from "./OrderStatusBadge";
-import { refundPaymentAdmin } from "@/lib/api";
+import { refundPaymentAdmin } from "@/lib/dotnet-backend";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import {
   ShoppingBag,
@@ -258,7 +258,7 @@ export function OrderDrawer({ isOpen, onClose, order, onRefunded }: OrderDrawerP
                     type="button"
                     disabled={isCurrent}
                     onClick={async () => {
-                      const ok = await import("@/lib/api").then((m) => m.updateOrderStatusAdmin(orderId, st as any));
+                      const ok = await import("@/lib/dotnet-backend").then((m) => m.updateOrderStatusAdmin(orderId, st as any));
                       if (ok) {
                         if (onRefunded) onRefunded();
                         onClose();

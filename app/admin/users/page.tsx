@@ -1,4 +1,4 @@
-import { fetchUsersAdmin } from "@/lib/api";
+import { fetchUsersAdmin } from "@/lib/dotnet-backend";
 import { AdminUsersClient } from "@/components/admin/AdminUsersClient";
 
 export const dynamic = "force-dynamic";

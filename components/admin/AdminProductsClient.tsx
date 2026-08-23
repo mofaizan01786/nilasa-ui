@@ -9,7 +9,7 @@ import { ProductDrawer } from "./ProductDrawer";
 import { ProductStatusToggle } from "./ProductStatusToggle";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { AdminToast } from "./AdminToast";
-import { deleteProduct } from "@/lib/api";
+import { deleteProduct } from "@/lib/dotnet-backend";
 import {
   Plus,
   Pencil,

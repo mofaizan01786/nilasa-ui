@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { fetchProductById } from "@/lib/api";
+import { fetchProductById } from "@/lib/dotnet-backend";
 import { EditProductClient } from "./EditProductClient";
 
 export const dynamic = "force-dynamic"; // SSR page for fresh product data

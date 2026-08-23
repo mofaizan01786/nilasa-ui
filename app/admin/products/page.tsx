@@ -1,4 +1,4 @@
-import { fetchAllProductsAdmin, fetchCategories } from "@/lib/api";
+import { fetchAllProductsAdmin, fetchCategories } from "@/lib/dotnet-backend";
 import { AdminProductsClient } from "@/components/admin/AdminProductsClient";
 
 export const dynamic = "force-dynamic"; // SSR for live admin inventory

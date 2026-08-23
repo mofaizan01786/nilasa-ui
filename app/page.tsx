@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { fetchPublishedProducts, fetchCategories } from "@/lib/api";
+import { fetchPublishedProducts, fetchCategories } from "@/lib/dotnet-backend";
 import { getBannersDirect } from "@/lib/siteData";
 import { ProductCard } from "@/components/ProductCard";
 import { CategoryStrip } from "@/components/CategoryStrip";

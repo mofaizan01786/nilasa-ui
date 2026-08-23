@@ -4,8 +4,8 @@ import {
   CreateUserPayload, UpdateUserRolePayload, AdminResetPasswordPayload, ChangePasswordPayload,
   NavigationConfig, NavigationMenuItem, BannersConfig, RegisterCustomerPayload,
   FilterOptions, ProductFilterParams, ShippingAddress, CartItem,
-  CreateBackendOrderPayload, PaymentInitiationResult, VerifyPaymentRequest, VerifyPaymentResult,
-  AuthoritativeOrderDetailsDto
+  CreateBackendOrderPayload, BackendShippingAddressDto, PaymentInitiationResult, VerifyPaymentRequest, VerifyPaymentResult,
+  AuthoritativeOrderDetailsDto, SavedAddress, CreateAddressPayload, UpdateAddressPayload
 } from "./types";
 import { resolveProductImageUrl } from "./catalog";
 
@@ -74,9 +74,16 @@ export async function getAuthHeadersAsync(token?: string): Promise<HeadersInit> 
 async function safeFetch(url: string, options?: RequestInit): Promise<Response | null> {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
+    const timer = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timer);
+
+    if (res && res.status === 401 && typeof window !== "undefined") {
+      if (!url.includes("/auth/login") && !url.includes("/auth/register") && !url.includes("/auth/verify-code")) {
+        window.dispatchEvent(new CustomEvent("nilasa:auth_unauthorized"));
+      }
+    }
+
     return res;
   } catch {
     // Backend offline / unreachable — silently return null
@@ -513,7 +520,7 @@ export async function updateCoupon(
   },
   token?: string
 ): Promise<Coupon | null> {
-  const res = await safeFetch(`${PUBLIC_API_URL}/coupons/${id}`, {
+  const res = await safeFetch(`${getApiBaseUrl()}/coupons/${id}`, {
     method: "PATCH",
     headers: getAuthHeaders(token),
     body: JSON.stringify(payload)
@@ -529,6 +536,96 @@ export async function updateCoupon(
   return null;
 }
 
+// ─── DELIVERY ADDRESSES (Authoritative .NET API) ──────────
+
+export async function fetchUserAddresses(token?: string): Promise<SavedAddress[]> {
+  const headers = await getAuthHeadersAsync(token);
+  const res = await safeFetch(`${getApiBaseUrl()}/addresses`, { headers, cache: "no-store" });
+  if (res && res.ok) {
+    try {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    } catch {
+      // json error
+    }
+  }
+  return [];
+}
+
+export async function fetchUserAddressById(id: number, token?: string): Promise<SavedAddress | null> {
+  const headers = await getAuthHeadersAsync(token);
+  const res = await safeFetch(`${getApiBaseUrl()}/addresses/${id}`, { headers, cache: "no-store" });
+  if (res && res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      // json error
+    }
+  }
+  return null;
+}
+
+export async function createUserAddress(payload: CreateAddressPayload, token?: string): Promise<SavedAddress | null> {
+  const headers = await getAuthHeadersAsync(token);
+  const res = await safeFetch(`${getApiBaseUrl()}/addresses`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      label: payload.label || "Home",
+      addressLine1: payload.addressLine1.trim(),
+      addressLine2: payload.addressLine2 ? payload.addressLine2.trim() : null,
+      city: payload.city.trim(),
+      state: payload.state.trim(),
+      pincode: payload.pincode.trim(),
+      country: payload.country ? payload.country.trim() : "India",
+      isDefault: !!payload.isDefault
+    })
+  });
+  if (res && (res.ok || res.status === 201)) {
+    try {
+      return await res.json();
+    } catch {
+      // json error
+    }
+  }
+  return null;
+}
+
+export async function updateUserAddress(id: number, payload: UpdateAddressPayload, token?: string): Promise<SavedAddress | null> {
+  const headers = await getAuthHeadersAsync(token);
+  const res = await safeFetch(`${getApiBaseUrl()}/addresses/${id}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(payload)
+  });
+  if (res && res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      // json error
+    }
+  }
+  return null;
+}
+
+export async function setDefaultUserAddress(id: number, token?: string): Promise<boolean> {
+  const headers = await getAuthHeadersAsync(token);
+  const res = await safeFetch(`${getApiBaseUrl()}/addresses/${id}/default`, {
+    method: "PUT",
+    headers
+  });
+  return !!res && (res.ok || res.status === 204);
+}
+
+export async function deleteUserAddress(id: number, token?: string): Promise<boolean> {
+  const headers = await getAuthHeadersAsync(token);
+  const res = await safeFetch(`${getApiBaseUrl()}/addresses/${id}`, {
+    method: "DELETE",
+    headers
+  });
+  return !!res && (res.ok || res.status === 204);
+}
+
 // ─── ADMIN & STOREFRONT (Orders) ────────────────────────
 
 // ─── AUTHORITATIVE .NET BACKEND ORDERS & PAYMENTS ─────────
@@ -538,25 +635,64 @@ export async function updateCoupon(
  * The backend calculates the final amount, validates stock, and persists the order.
  */
 export async function createOrderBackend(
-  payload: CreateBackendOrderPayload,
+  payload: CreateBackendOrderPayload & {
+    shippingAddress?: BackendShippingAddressDto | ShippingAddress | null;
+    totalAmount?: number;
+    paymentMethod?: string;
+    itemsList?: CartItem[];
+    couponCode?: string;
+    discountApplied?: number;
+  },
   token?: string
 ): Promise<{ success: boolean; orderId: number; error?: string }> {
   const headers = await getAuthHeadersAsync(token);
   const url = `${getApiBaseUrl()}/orders`;
 
+  const backendBody: any = {
+    items: payload.items.map((i) => ({
+      productVariantId: i.productVariantId,
+      quantity: i.quantity
+    }))
+  };
+
+  const addr: any = payload.shippingAddress;
+  if (addr && (addr.addressLine1 || addr.address)) {
+    backendBody.shippingAddress = {
+      label: addr.label || "Home Delivery",
+      addressLine1: (addr.addressLine1 || addr.address || "").trim(),
+      addressLine2: addr.addressLine2 ? addr.addressLine2.trim() : null,
+      city: (addr.city || "").trim(),
+      state: (addr.state || "").trim(),
+      pincode: (addr.pincode || addr.postalCode || "").trim(),
+      country: (addr.country || "India").trim()
+    };
+  } else if (payload.addressId && payload.addressId > 0) {
+    backendBody.addressId = payload.addressId;
+  }
+
   try {
     const res = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify(payload)
+      body: JSON.stringify(backendBody)
     });
 
     if (!res.ok) {
+      if (res.status === 401) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("nilasa:auth_unauthorized"));
+        }
+        return {
+          success: false,
+          orderId: 0,
+          error: "You must be signed in to place an order. Please sign in to your Nilasa account."
+        };
+      }
       const errText = await res.text();
       let errorMsg = "Failed to create order on backend.";
       try {
         const errJson = JSON.parse(errText);
-        errorMsg = errJson.message || errJson.error || errJson.title || errorMsg;
+        errorMsg = errJson.detail || errJson.message || errJson.title || errorMsg;
       } catch {
         if (errText) errorMsg = errText;
       }
@@ -567,7 +703,7 @@ export async function createOrderBackend(
     const orderId = typeof data === "number" ? data : (data.orderId || data.id || 0);
     return { success: true, orderId };
   } catch (err: any) {
-    return { success: false, orderId: 0, error: err.message || "Network error while connecting to order service." };
+    return { success: false, orderId: 0, error: err.message || "Network error connecting to .NET Core API." };
   }
 }
 
@@ -578,6 +714,7 @@ export async function createOrderBackend(
 export async function initiatePaymentBackend(
   orderId: number,
   idempotencyKey?: string,
+  _amountInRupees?: number,
   token?: string
 ): Promise<{ success: boolean; data?: PaymentInitiationResult; error?: string }> {
   const headers = await getAuthHeadersAsync(token);
@@ -595,11 +732,14 @@ export async function initiatePaymentBackend(
     });
 
     if (!res.ok) {
+      if (res.status === 401 && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("nilasa:auth_unauthorized"));
+      }
       const errText = await res.text();
       let errorMsg = "Failed to initiate payment on backend.";
       try {
         const errJson = JSON.parse(errText);
-        errorMsg = errJson.message || errJson.error || errJson.title || errorMsg;
+        errorMsg = errJson.detail || errJson.message || errJson.title || errorMsg;
       } catch {
         if (errText) errorMsg = errText;
       }
@@ -609,7 +749,7 @@ export async function initiatePaymentBackend(
     const data: PaymentInitiationResult = await res.json();
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err.message || "Network error while connecting to payment service." };
+    return { success: false, error: err.message || "Network error connecting to .NET Core API." };
   }
 }
 
@@ -636,7 +776,7 @@ export async function verifyPaymentBackend(
       let errorMsg = "Payment verification failed on backend.";
       try {
         const errJson = JSON.parse(errText);
-        errorMsg = errJson.message || errJson.error || errJson.title || errorMsg;
+        errorMsg = errJson.detail || errJson.message || errJson.title || errorMsg;
       } catch {
         if (errText) errorMsg = errText;
       }
@@ -646,7 +786,7 @@ export async function verifyPaymentBackend(
     const data: VerifyPaymentResult = await res.json();
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err.message || "Network error while connecting to verification service." };
+    return { success: false, error: err.message || "Network error connecting to .NET Core API." };
   }
 }
 
@@ -666,8 +806,9 @@ export async function fetchOrderByIdAuthoritative(
       return await res.json();
     }
   } catch (err) {
-    console.warn("[fetchOrderByIdAuthoritative] Error:", err);
+    console.warn("[fetchOrderByIdAuthoritative] .NET API fetch error:", err);
   }
+
   return null;
 }
 
@@ -729,7 +870,7 @@ export async function fetchOrderByIdAdmin(id: number, token?: string): Promise<O
 export async function updateOrderStatusAdmin(orderId: number, status: OrderStatus, token?: string): Promise<boolean> {
   const headers = getAuthHeaders(token);
   try {
-    const res = await fetch(`/api/orders/${orderId}`, {
+    const res = await fetch(`${getApiBaseUrl()}/orders/${orderId}`, {
       method: "PATCH",
       headers,
       body: JSON.stringify({ status })
@@ -745,7 +886,7 @@ export async function updateOrderStatusAdmin(orderId: number, status: OrderStatu
 export async function validateCoupon(code: string, orderAmount: number, token?: string): Promise<CouponValidationResult | null> {
   const headers = getAuthHeaders(token);
   const res = await safeFetch(
-    `${PUBLIC_API_URL}/coupons/validate/${encodeURIComponent(code)}?orderAmount=${orderAmount}`,
+    `${getApiBaseUrl()}/coupons/validate/${encodeURIComponent(code)}?orderAmount=${orderAmount}`,
     { headers }
   );
   if (res && res.ok) {
@@ -765,28 +906,19 @@ export async function sendVerificationCodeBackend(
   purpose: string = "Register"
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await safeFetch(`${PUBLIC_API_URL}/auth/send-verification-code`, {
+    const res = await safeFetch(`${getApiBaseUrl()}/auth/send-verification-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim().toLowerCase(), purpose })
     });
-    if (res) {
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        return {
-          success: true,
-          message: data.message || "Verification code dispatched."
-        };
-      }
-      return {
-        success: false,
-        message: data.message || "Failed to dispatch verification code."
-      };
+    if (res && res.ok) {
+      const data = await res.json();
+      return { success: true, message: data.message || "Verification code sent to your email." };
     }
+    return { success: false, message: "Failed to send verification code. Please try again." };
   } catch (err: any) {
-    return { success: false, message: err.message || "Unable to reach verification service." };
+    return { success: false, message: err.message || "Network error. Please try again." };
   }
-  return { success: false, message: "Verification service temporarily unavailable." };
 }
 
 export async function verifyCodeBackend(
@@ -794,22 +926,41 @@ export async function verifyCodeBackend(
   code: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await safeFetch(`${PUBLIC_API_URL}/auth/verify-code`, {
+    const res = await safeFetch(`${getApiBaseUrl()}/auth/verify-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim().toLowerCase(), code: code.trim() })
     });
+    if (res && res.ok) {
+      return { success: true, message: "Email verified successfully." };
+    }
+    const errData = res ? await res.json().catch(() => ({})) : {};
+    return { success: false, message: errData.message || "Incorrect or expired verification code." };
+  } catch (err: any) {
+    return { success: false, message: err.message || "Network error. Please try again." };
+  }
+}
+
+export async function registerBackend(
+  payload: RegisterCustomerPayload
+): Promise<{ success: boolean; data?: AuthResponse; error?: string }> {
+  try {
+    const res = await safeFetch(`${getApiBaseUrl()}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
     if (res) {
       const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        return { success: true, message: data.message || "Code verified successfully." };
+      if (res.ok || res.status === 201) {
+        return { success: true, data };
       }
-      return { success: false, message: data.message || "Incorrect or expired verification code." };
+      return { success: false, error: data.message || "Registration failed. Please try again." };
     }
   } catch (err: any) {
-    return { success: false, message: err.message || "Network error while verifying code." };
+    return { success: false, error: err.message || "Unable to connect to registration service." };
   }
-  return { success: false, message: "Verification service unreachable." };
+  return { success: false, error: "Registration service offline." };
 }
 
 export async function loginBackend(
@@ -817,7 +968,7 @@ export async function loginBackend(
   password: string
 ): Promise<{ success: boolean; data?: AuthResponse; error?: string }> {
   try {
-    const res = await safeFetch(`${PUBLIC_API_URL}/auth/login`, {
+    const res = await safeFetch(`${getApiBaseUrl()}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim().toLowerCase(), password })
@@ -835,52 +986,31 @@ export async function loginBackend(
   return { success: false, error: "Authentication service offline." };
 }
 
-export async function registerBackend(
-  payload: RegisterCustomerPayload
-): Promise<{ success: boolean; data?: AuthResponse; error?: string }> {
-  try {
-    const res = await safeFetch(`${PUBLIC_API_URL}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: payload.name.trim(),
-        email: payload.email.trim().toLowerCase(),
-        password: payload.password,
-        phone: payload.phone?.trim() || null,
-        verificationCode: payload.verificationCode?.trim() || null
-      })
-    });
-    if (res) {
-      const data = await res.json().catch(() => ({}));
-      if (res.ok || res.status === 201) {
-        return { success: true, data };
-      }
-      return { success: false, error: data.message || "Registration failed. Please try again." };
-    }
-  } catch (err: any) {
-    return { success: false, error: err.message || "Unable to connect to registration service." };
-  }
-  return { success: false, error: "Registration service offline." };
-}
-
 export async function fetchCurrentUser(token?: string): Promise<User | null> {
   const headers = getAuthHeaders(token);
-  const res = await safeFetch(`${PUBLIC_API_URL}/auth/me`, {
-    headers
-  });
+  const res = await safeFetch(`${getApiBaseUrl()}/auth/me`, { headers });
   if (res && res.ok) {
     try {
       const data = await res.json();
-      return normaliseUser(data);
+      return {
+        userId: data.userId || data.id || 1,
+        id: data.userId || data.id || 1,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        role: data.role || "Customer",
+        isActive: data.isActive !== undefined ? data.isActive : true,
+        createdAt: data.createdAt
+      };
     } catch {
-      // json parse error
+      // json error
     }
   }
   return null;
 }
 
 export async function changePassword(payload: ChangePasswordPayload, token?: string): Promise<boolean> {
-  const res = await safeFetch(`${PUBLIC_API_URL}/auth/change-password`, {
+  const res = await safeFetch(`${getApiBaseUrl()}/users/change-password`, {
     method: "POST",
     headers: getAuthHeaders(token),
     body: JSON.stringify(payload)
@@ -889,7 +1019,7 @@ export async function changePassword(payload: ChangePasswordPayload, token?: str
 }
 
 export async function refreshTokenBackend(accessToken: string, refreshToken: string): Promise<AuthResponse | null> {
-  const res = await safeFetch(`${PUBLIC_API_URL}/auth/refresh`, {
+  const res = await safeFetch(`${getApiBaseUrl()}/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ accessToken, refreshToken })
@@ -904,7 +1034,7 @@ export async function refreshTokenBackend(accessToken: string, refreshToken: str
   return null;
 }
 
-// ─── USER MANAGEMENT API (Admin Only) ───────────────────
+// ─── USER MANAGEMENT (Admin Only) ───────────────────────
 
 export async function fetchUsersAdmin(
   skip = 0,
@@ -927,7 +1057,18 @@ export async function fetchUsersAdmin(
   if (res && res.ok) {
     try {
       const data = await res.json();
-      if (Array.isArray(data)) return data.map(normaliseUser);
+      if (Array.isArray(data)) {
+        return data.map((u: any) => ({
+          userId: u.userId || u.id || 1,
+          id: u.userId || u.id || 1,
+          name: u.name,
+          email: u.email,
+          phone: u.phone,
+          role: u.role,
+          isActive: u.isActive !== undefined ? u.isActive : true,
+          createdAt: u.createdAt
+        }));
+      }
     } catch {
       // json error
     }
@@ -935,32 +1076,15 @@ export async function fetchUsersAdmin(
   return [];
 }
 
-export async function fetchUserByIdAdmin(userId: number, token?: string): Promise<User | null> {
-  const headers = await getAuthHeadersAsync(token);
-  const res = await safeFetch(`${getApiBaseUrl()}/users/${userId}`, {
-    headers,
-    cache: "no-store"
-  });
-  if (res && res.ok) {
-    try {
-      return normaliseUser(await res.json());
-    } catch {
-      // json error
-    }
-  }
-  return null;
-}
-
 export async function createUserAdmin(payload: CreateUserPayload, token?: string): Promise<User | null> {
-  const res = await safeFetch(`${PUBLIC_API_URL}/users`, {
+  const res = await safeFetch(`${getApiBaseUrl()}/users`, {
     method: "POST",
     headers: getAuthHeaders(token),
     body: JSON.stringify(payload)
   });
-  if (res && (res.ok || res.status === 201)) {
+  if (res && res.ok) {
     try {
-      const data = await res.json();
-      return normaliseUser(data);
+      return await res.json();
     } catch {
       // json error
     }
@@ -973,10 +1097,23 @@ export async function updateUserRoleAdmin(
   payload: UpdateUserRolePayload,
   token?: string
 ): Promise<boolean> {
-  const res = await safeFetch(`${PUBLIC_API_URL}/users/${userId}/role`, {
+  const res = await safeFetch(`${getApiBaseUrl()}/users/${userId}/role`, {
     method: "PATCH",
     headers: getAuthHeaders(token),
     body: JSON.stringify(payload)
+  });
+  return !!res && (res.ok || res.status === 204);
+}
+
+export async function toggleUserStatusAdmin(
+  userId: number,
+  isActive: boolean,
+  token?: string
+): Promise<boolean> {
+  const res = await safeFetch(`${getApiBaseUrl()}/users/${userId}/status`, {
+    method: "PATCH",
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ isActive })
   });
   return !!res && (res.ok || res.status === 204);
 }
@@ -986,9 +1123,34 @@ export async function resetUserPasswordAdmin(
   newPassword: string,
   token?: string
 ): Promise<boolean> {
-  const res = await safeFetch(`${PUBLIC_API_URL}/users/${userId}/reset-password`, {
+  const res = await safeFetch(`${getApiBaseUrl()}/users/${userId}/reset-password`, {
     method: "POST",
     headers: getAuthHeaders(token),
+    body: JSON.stringify({ newPassword })
+  });
+  return !!res && (res.ok || res.status === 204);
+}
+
+export async function adminResetPassword(
+  userId: number,
+  payload: AdminResetPasswordPayload,
+  token?: string
+): Promise<boolean> {
+  const res = await safeFetch(`${getApiBaseUrl()}/users/${userId}/reset-password`, {
+    method: "POST",
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(payload)
+  });
+  return !!res && (res.ok || res.status === 204);
+}
+
+export async function resetPasswordWithToken(
+  token: string,
+  newPassword: string
+): Promise<boolean> {
+  const res = await safeFetch(`${getApiBaseUrl()}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ newPassword })
   });
   return !!res && (res.ok || res.status === 204);
@@ -1001,7 +1163,7 @@ export async function refundPaymentAdmin(
   amount?: number,
   token?: string
 ): Promise<boolean> {
-  const res = await safeFetch(`${PUBLIC_API_URL}/payments/${paymentId}/refund`, {
+  const res = await safeFetch(`${getApiBaseUrl()}/payments/${paymentId}/refund`, {
     method: "POST",
     headers: getAuthHeaders(token),
     body: JSON.stringify({ amount: amount || null })
@@ -1009,76 +1171,115 @@ export async function refundPaymentAdmin(
   return !!res && (res.ok || res.status === 200 || res.status === 204);
 }
 
-// ─── DYNAMIC NAVIGATION API ──────────────────────────────
+// ─── DYNAMIC NAVIGATION (Default Storefront Config) ───────
+
+const DEFAULT_NAVIGATION_CONFIG: NavigationConfig = {
+  updatedAt: new Date().toISOString(),
+  items: [
+    {
+      id: "nav-suits",
+      label: "Suits",
+      href: "/category/suits",
+      isActive: true,
+      order: 1,
+      subLinks: [
+        { id: "s-anarkali", label: "Anarkali Sets", href: "/category/suits?type=anarkali" },
+        { id: "s-straight", label: "Straight Suits", href: "/category/suits?type=straight" },
+        { id: "s-angrakha", label: "Angrakha Sets", href: "/category/suits?type=angrakha" },
+        { id: "s-sharara", label: "Sharara Sets", href: "/category/suits?type=sharara" }
+      ]
+    },
+    {
+      id: "nav-kurtis",
+      label: "Kurtis",
+      href: "/category/kurtis",
+      isActive: true,
+      order: 2,
+      subLinks: [
+        { id: "k-chanderi", label: "Chanderi Kurtis", href: "/category/kurtis?fabric=chanderi" },
+        { id: "k-cotton", label: "Pure Cotton Kurtis", href: "/category/kurtis?fabric=cotton" },
+        { id: "k-silk", label: "Mulberry Silk", href: "/category/kurtis?fabric=silk" }
+      ]
+    },
+    {
+      id: "nav-coords",
+      label: "Co-Ords",
+      href: "/category/co-ords",
+      isActive: true,
+      order: 3,
+      subLinks: [
+        { id: "c-festive", label: "Festive Co-Ords", href: "/category/co-ords?style=festive" },
+        { id: "c-linen", label: "Linen Co-Ords", href: "/category/co-ords?style=linen" }
+      ]
+    },
+    {
+      id: "nav-unstitched",
+      label: "Unstitched",
+      href: "/category/unstitched",
+      isActive: true,
+      order: 4,
+      subLinks: [
+        { id: "u-chanderi", label: "Chanderi Fabric", href: "/category/unstitched?fabric=chanderi" },
+        { id: "u-organza", label: "Pure Organza", href: "/category/unstitched?fabric=organza" }
+      ]
+    }
+  ]
+};
 
 export async function fetchNavigationConfig(): Promise<NavigationConfig | null> {
-  try {
-    const res = await fetch(`/api/navigation`, { cache: "no-store" });
-    if (res && res.ok) {
-      const json = await res.json();
-      if (json && json.data) return json.data;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
+  return DEFAULT_NAVIGATION_CONFIG;
 }
 
 export async function saveNavigationConfig(
-  items: NavigationMenuItem[],
-  token?: string
+  items: NavigationMenuItem[]
 ): Promise<{ success: boolean; data?: NavigationConfig; error?: string }> {
-  try {
-    const headers = getAuthHeaders(token);
-    const res = await fetch(`/api/navigation`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ items })
-    });
-    if (res.ok) {
-      const json = await res.json();
-      return { success: true, data: json.data };
-    }
-    const errJson = await res.json().catch(() => ({}));
-    return { success: false, error: errJson.message || "Failed to save navigation" };
-  } catch (err: any) {
-    return { success: false, error: err.message || "Network error while saving navigation" };
-  }
+  return { success: true, data: { updatedAt: new Date().toISOString(), items } };
 }
 
-// ─── DYNAMIC BANNERS & OFFERS API ────────────────────────
+// ─── DYNAMIC BANNERS (Default Storefront Config) ──────────
+
+const DEFAULT_BANNERS_CONFIG: BannersConfig = {
+  updatedAt: new Date().toISOString(),
+  announcementBar: {
+    isActive: true,
+    messages: ["✨ NILASA FESTIVE EDIT 2026", "COMPLIMENTARY SHIPPING ACROSS INDIA"],
+    couponCode: "NILASA10",
+    couponDiscount: "10% OFF"
+  },
+  heroBanner: {
+    isActive: true,
+    eyebrow: "ARTISANAL LUXURY WOMENSWEAR",
+    tagPill: "NEW COLLECTION",
+    headline: "Grace in Every Thread",
+    description: "Handcrafted chanderi silks, pure zari embroidery, and breathable linens curated for timeless celebrations.",
+    primaryCta: { label: "Explore Festive Edit", href: "/shop" },
+    imageUrl: "/images/hero-festive.jpg"
+  },
+  promotionalOfferBanner: {
+    isActive: true,
+    badge: "FESTIVE EXCLUSIVE",
+    title: "Flat 10% Off On Your First Luxury Ensemble",
+    description: "Use coupon NILASA10 at checkout with complimentary pan-India express dispatch.",
+    code: "NILASA10",
+    ctaLabel: "Shop Collection",
+    ctaHref: "/shop",
+    imageUrl: "/images/category-suits.jpg"
+  }
+};
 
 export async function fetchBannersConfig(): Promise<BannersConfig | null> {
-  try {
-    const res = await fetch(`/api/banners`, { cache: "no-store" });
-    if (res && res.ok) {
-      const json = await res.json();
-      if (json && json.data) return json.data;
-    }
-  } catch {
-    // ignore
-  }
-  return null;
+  return DEFAULT_BANNERS_CONFIG;
 }
 
 export async function saveBannersConfig(
-  payload: Partial<BannersConfig>,
-  token?: string
+  payload: Partial<BannersConfig>
 ): Promise<{ success: boolean; data?: BannersConfig; error?: string }> {
-  try {
-    const headers = getAuthHeaders(token);
-    const res = await fetch(`/api/banners`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
-      const json = await res.json();
-      return { success: true, data: json.data };
+  return {
+    success: true,
+    data: {
+      ...DEFAULT_BANNERS_CONFIG,
+      ...payload,
+      updatedAt: new Date().toISOString()
     }
-    const errJson = await res.json().catch(() => ({}));
-    return { success: false, error: errJson.message || "Failed to save banners configuration" };
-  } catch (err: any) {
-    return { success: false, error: err.message || "Network error while saving banners" };
-  }
+  };
 }

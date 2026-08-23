@@ -1,4 +1,4 @@
-import { fetchCouponsAdmin } from "@/lib/api";
+import { fetchCouponsAdmin } from "@/lib/dotnet-backend";
 import { AdminCouponsClient } from "@/components/admin/AdminCouponsClient";
 
 export const dynamic = "force-dynamic"; // SSR page for fresh coupon data

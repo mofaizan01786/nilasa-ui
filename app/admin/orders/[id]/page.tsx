@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { readOrders } from "@/lib/orders-store";
-import { fetchOrderByIdAdmin } from "@/lib/api";
+import { fetchOrderByIdAdmin } from "@/lib/dotnet-backend";
 import { formatPrice } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic"; // SSR page for real-time order data
@@ -14,14 +13,8 @@ export default async function AdminOrderDetailPage({
   const { id } = await params;
   const numId = parseInt(id, 10);
 
-  // 1. Fetch authoritative order from backend API first
-  let order = await fetchOrderByIdAdmin(isNaN(numId) ? 101 : numId);
-
-  // 2. Fallback to local store if backend did not return it
-  if (!order) {
-    const localOrders = readOrders();
-    order = localOrders.find((o) => (o.orderId || o.id) === numId) || null;
-  }
+  // Fetch authoritative order from .NET backend API
+  const order = await fetchOrderByIdAdmin(isNaN(numId) ? 1 : numId);
 
   if (!order) notFound();
 

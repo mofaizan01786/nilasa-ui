@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { patchProductStatus } from "@/lib/api";
+import { patchProductStatus } from "@/lib/dotnet-backend";
 import { ProductStatus } from "@/lib/types";
 
 interface ProductStatusToggleProps {

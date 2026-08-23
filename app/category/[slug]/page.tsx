@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { fetchCategories, fetchPublishedProducts, fetchProductFilters } from "@/lib/api";
+import { fetchCategories, fetchPublishedProducts, fetchProductFilters } from "@/lib/dotnet-backend";
 import { ShopClient } from "@/app/shop/ShopClient";
 
 export const revalidate = 3600; // ISR cache strategy
