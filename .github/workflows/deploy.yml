@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout Source Code
@@ -31,15 +31,36 @@ jobs:
       - name: Package for IIS / SmarterASP.NET
         run: node scripts/package-iis.js --skip-build --keep-dist --skip-zip
 
-      - name: Deploy to SmarterASP.NET via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER || 'win6030.site4now.net' }}
-          username: ${{ secrets.FTP_USERNAME || 'nilasaUI' }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          security: loose
-          local-dir: ./dist-package/
-          server-dir: ${{ secrets.FTP_SERVER_DIR || '/' }}
-          dangerous-clean-slate: false
+      - name: Deploy to SmarterASP.NET via Web Deploy (MSDeploy)
+        shell: powershell
+        run: |
+          $msdeploy = "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          if (-not (Test-Path $msdeploy)) {
+            $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          }
+
+          $siteName = "${{ secrets.SMARTERASP_SITE_NAME }}"
+          if ([string]::IsNullOrWhiteSpace($siteName)) {
+            $siteName = "faizanansari-001-subsite3"
+          }
+
+          $publishUrl = "${{ secrets.SMARTERASP_PUBLISH_URL }}"
+          if ([string]::IsNullOrWhiteSpace($publishUrl)) {
+            $publishUrl = "https://win6030.site4now.net:8172/msdeploy.axd?site=$siteName"
+          }
+
+          $userName = "${{ secrets.SMARTERASP_USERNAME }}"
+          if ([string]::IsNullOrWhiteSpace($userName)) {
+            $userName = "faizanansari-001"
+          }
+
+          $password = "${{ secrets.SMARTERASP_PASSWORD || secrets.FTP_PASSWORD }}"
+
+          $distPath = Join-Path (Get-Location) "dist-package"
+
+          Write-Host "Deploying Next.js Storefront from $distPath to SmarterASP site: $siteName..."
+          & $msdeploy -verb:sync `
+            -source:contentPath="$distPath" `
+            -dest:contentPath="$siteName",ComputerName="$publishUrl",UserName="$userName",Password="$password",AuthType="Basic",IncludeAcls="False" `
+            -allowUntrusted `
+            -enableRule:DoNotDeleteRule
