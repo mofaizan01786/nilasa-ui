@@ -7,7 +7,7 @@ import {
   NavigationSubLink,
   NavigationPromoCard
 } from "@/lib/types";
-import { fetchNavigationConfig, saveNavigationConfig } from "@/lib/dotnet-backend";
+import { getNavigationServerAction, saveNavigationServerAction } from "@/lib/navigation-actions";
 import {
   Compass,
   Plus,
@@ -43,7 +43,7 @@ export default function AdminNavigationPage() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const config = await fetchNavigationConfig();
+      const config = await getNavigationServerAction();
       if (config && Array.isArray(config.items)) {
         setItems(config.items.sort((a, b) => a.order - b.order));
         if (config.items.length > 0 && !editingItemId) {
@@ -227,12 +227,16 @@ export default function AdminNavigationPage() {
     setSaveStatus("idle");
     setStatusMessage("");
 
-    const res = await saveNavigationConfig(items);
+    const res = await saveNavigationServerAction(items);
     setSaving(false);
 
-    if (res.success) {
+    if (res.success && res.data) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("nilasa-navigation-config", JSON.stringify(res.data));
+        window.dispatchEvent(new CustomEvent("nilasa-navigation-updated", { detail: res.data }));
+      }
       setSaveStatus("success");
-      setStatusMessage("Navigation menus updated successfully! Live website reflects changes.");
+      setStatusMessage("Navigation menus saved directly to data/navigation.json! Storefront header updated instantly.");
       setTimeout(() => setSaveStatus("idle"), 4000);
     } else {
       setSaveStatus("error");

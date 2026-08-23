@@ -67,9 +67,20 @@ export function Header() {
     };
     window.addEventListener("nilasa-banners-updated", handleBannerUpdate);
 
+    const handleNavUpdate = (e: any) => {
+      if (e.detail && Array.isArray(e.detail.items)) {
+        const active = e.detail.items
+          .filter((item: NavigationMenuItem) => item.isActive)
+          .sort((a: NavigationMenuItem, b: NavigationMenuItem) => a.order - b.order);
+        setMenuItems(active);
+      }
+    };
+    window.addEventListener("nilasa-navigation-updated", handleNavUpdate);
+
     return () => {
       isMounted = false;
       window.removeEventListener("nilasa-banners-updated", handleBannerUpdate);
+      window.removeEventListener("nilasa-navigation-updated", handleNavUpdate);
     };
   }, []);
 

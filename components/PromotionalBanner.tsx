@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PromotionalOfferBannerConfig } from "@/lib/types";
@@ -10,8 +10,20 @@ interface PromotionalBannerProps {
   banner?: PromotionalOfferBannerConfig;
 }
 
-export function PromotionalBanner({ banner }: PromotionalBannerProps) {
+export function PromotionalBanner({ banner: initialBanner }: PromotionalBannerProps) {
+  const [banner, setBanner] = useState<PromotionalOfferBannerConfig | undefined>(initialBanner);
   const [copied, setCopied] = useState(false);
+
+  // Sync client-side when updated in Admin Panel
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (e.detail && e.detail.promotionalOfferBanner) {
+        setBanner(e.detail.promotionalOfferBanner);
+      }
+    };
+    window.addEventListener("nilasa-banners-updated", handleSync);
+    return () => window.removeEventListener("nilasa-banners-updated", handleSync);
+  }, []);
 
   if (!banner || !banner.isActive) {
     return null;

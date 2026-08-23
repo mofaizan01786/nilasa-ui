@@ -1291,13 +1291,51 @@ const DEFAULT_NAVIGATION_CONFIG: NavigationConfig = {
 };
 
 export async function fetchNavigationConfig(): Promise<NavigationConfig | null> {
+  if (typeof window !== "undefined") {
+    try {
+      const stored = window.localStorage.getItem("nilasa-navigation-config");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }
+  try {
+    const { getNavigationServerAction } = await import("./navigation-actions");
+    const direct = await getNavigationServerAction();
+    if (direct && Array.isArray(direct.items) && direct.items.length > 0) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("nilasa-navigation-config", JSON.stringify(direct));
+      }
+      return direct;
+    }
+  } catch {
+    // fallback
+  }
   return DEFAULT_NAVIGATION_CONFIG;
 }
 
 export async function saveNavigationConfig(
   items: NavigationMenuItem[]
 ): Promise<{ success: boolean; data?: NavigationConfig; error?: string }> {
-  return { success: true, data: { updatedAt: new Date().toISOString(), items } };
+  try {
+    const { saveNavigationServerAction } = await import("./navigation-actions");
+    const res = await saveNavigationServerAction(items);
+    if (res.success && res.data) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("nilasa-navigation-config", JSON.stringify(res.data));
+        window.dispatchEvent(new CustomEvent("nilasa-navigation-updated", { detail: res.data }));
+      }
+      return res;
+    }
+    return { success: false, error: res.error || "Failed to save navigation config" };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Failed to save navigation config" };
+  }
 }
 
 // ─── DYNAMIC BANNERS (Default Storefront Config) ──────────
@@ -1413,6 +1451,18 @@ export async function fetchBannersConfig(): Promise<BannersConfig | null> {
       // fallback
     }
   }
+  try {
+    const { getBannersServerAction } = await import("./banners-actions");
+    const direct = await getBannersServerAction();
+    if (direct && (direct.heroBanner || direct.heroSlides)) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("nilasa-banners-config", JSON.stringify(direct));
+      }
+      return direct;
+    }
+  } catch {
+    // fallback
+  }
   return DEFAULT_BANNERS_CONFIG;
 }
 
@@ -1427,15 +1477,16 @@ export async function saveBannersConfig(
       updatedAt: new Date().toISOString()
     };
 
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("nilasa-banners-config", JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent("nilasa-banners-updated", { detail: updated }));
+    const { saveBannersServerAction } = await import("./banners-actions");
+    const res = await saveBannersServerAction(updated);
+    if (res.success && res.data) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("nilasa-banners-config", JSON.stringify(res.data));
+        window.dispatchEvent(new CustomEvent("nilasa-banners-updated", { detail: res.data }));
+      }
+      return res;
     }
-
-    return {
-      success: true,
-      data: updated
-    };
+    return { success: false, error: res.error || "Failed to save banners" };
   } catch (err: any) {
     return {
       success: false,
