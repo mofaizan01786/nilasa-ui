@@ -6,6 +6,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { CategoryStrip } from "@/components/CategoryStrip";
 import { TrustBadges } from "@/components/TrustBadges";
 import { PromotionalBanner } from "@/components/PromotionalBanner";
+import { HeroCarousel } from "@/components/HeroCarousel";
 
 export const revalidate = 60; // Dynamic ISR cache strategy for storefront home
 
@@ -17,70 +18,11 @@ export default async function HomePage() {
 
   const banners = getBannersDirect();
   const featuredProducts = products.slice(0, 6);
-  const hero = banners?.heroBanner;
 
   return (
     <main>
-      {/* Dynamic Hero Section */}
-      {hero && hero.isActive !== false && (
-        <section className="hero">
-          <div className="hero-copy">
-            <div className="hero-badge-group">
-              {hero.eyebrow ? (
-                <span className="eyebrow eyebrow--gold">{hero.eyebrow}</span>
-              ) : hero.tagPill ? (
-                <span className="rose-tag-pill">{hero.tagPill}</span>
-              ) : null}
-            </div>
-
-            <h1>{hero.headline || "Grace In Every Thread"}</h1>
-            <p className="hero-description">
-              {hero.description ||
-                "Thoughtfully cut Indian ethnic wear designed for quiet confidence. Handcrafted Chanderi silks, zari woven suit sets, and versatile separates."}
-            </p>
-
-            <div className="hero-cta-group">
-              {hero.primaryCta && (
-                <Link
-                  href={hero.primaryCta.href || "/shop"}
-                  className="button button--gold button--large"
-                >
-                  {hero.primaryCta.label || "Explore Collection →"}
-                </Link>
-              )}
-              {hero.secondaryCta && (
-                <Link
-                  href={hero.secondaryCta.href || "/category/suits"}
-                  className="button button--indigo button--large"
-                >
-                  {hero.secondaryCta.label || "View Suit Sets"}
-                </Link>
-              )}
-            </div>
-          </div>
-
-          <div className="hero-media">
-            <div className="hero-media-frame">
-              <Image
-                src={
-                  hero.imageUrl ||
-                  "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=1200&q=85"
-                }
-                alt={hero.headline || "Nilasa Ethnic Collection"}
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
-            </div>
-            {hero.featuredPiece && (
-              <div className="hero-floating-card">
-                <span className="floating-card-title">{hero.featuredPiece.title}</span>
-                <span className="floating-card-subtitle">{hero.featuredPiece.subtitle}</span>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+      {/* Interactive Luxury Hero Carousel (Myntra / Ajio Luxe Standard) */}
+      <HeroCarousel initialHero={banners} />
 
       {/* Category Strip Section */}
       <CategoryStrip categories={categories} />

@@ -7,6 +7,7 @@ const distDir = path.join(rootDir, 'dist-package');
 const zipFile = path.join(rootDir, 'nilasa-frontend-publish.zip');
 
 const skipBuild = process.argv.includes('--skip-build');
+const keepDist = process.argv.includes('--keep-dist');
 
 if (!skipBuild) {
   console.log('1. Building Next.js production bundle...');
@@ -216,10 +217,12 @@ try {
 
 execSync(`tar -a -c -f "${zipFile}" -C "${distDir}" *`, { stdio: 'inherit' });
 
-console.log('5. Cleaning up temp dist folder...');
-try {
-  fs.rmSync(distDir, { recursive: true, force: true });
-} catch (e) {}
+if (!keepDist) {
+  console.log('5. Cleaning up temp dist folder...');
+  try {
+    fs.rmSync(distDir, { recursive: true, force: true });
+  } catch (e) {}
+}
 
 const stats = fs.statSync(zipFile);
 const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);

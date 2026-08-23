@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { User } from "@/lib/types";
+import { fetchUsersAdmin } from "@/lib/dotnet-backend";
 import { UserDrawer } from "./UserDrawer";
 import { AdminToast } from "./AdminToast";
 import {
@@ -12,22 +13,47 @@ import {
   Search,
   Shield,
   UserCheck,
-  UserX
+  UserX,
+  RefreshCw
 } from "lucide-react";
 
 interface AdminUsersClientProps {
   users: User[];
 }
 
-export function AdminUsersClient({ users }: AdminUsersClientProps) {
+export function AdminUsersClient({ users: initialUsers }: AdminUsersClientProps) {
   const router = useRouter();
 
+  const [userList, setUserList] = useState<User[]>(initialUsers || []);
+  const [loading, setLoading] = useState<boolean>(!initialUsers || initialUsers.length === 0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const loadUsersData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("nilasa-auth-token") || undefined
+          : undefined;
+      const list = await fetchUsersAdmin(0, 200, undefined, undefined, token);
+      if (list && Array.isArray(list)) {
+        setUserList(list);
+      }
+    } catch (err) {
+      console.error("Failed to load users client-side:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUsersData();
+  }, [loadUsersData]);
 
   const handleOpenCreate = () => {
     setEditingUser(null);
@@ -39,13 +65,14 @@ export function AdminUsersClient({ users }: AdminUsersClientProps) {
     setDrawerOpen(true);
   };
 
-  const handleReload = (msg?: string) => {
+  const handleReload = async (msg?: string) => {
     if (msg) setToastMessage(msg);
+    await loadUsersData();
     router.refresh();
   };
 
   const filteredUsers = useMemo(() => {
-    let list = [...users];
+    let list = [...userList];
 
     if (roleFilter !== "ALL") {
       list = list.filter((u) => u.role?.toLowerCase() === roleFilter.toLowerCase());
@@ -69,7 +96,7 @@ export function AdminUsersClient({ users }: AdminUsersClientProps) {
     }
 
     return list;
-  }, [users, searchQuery, roleFilter, statusFilter]);
+  }, [userList, searchQuery, roleFilter, statusFilter]);
 
   return (
     <div>
@@ -83,14 +110,27 @@ export function AdminUsersClient({ users }: AdminUsersClientProps) {
           <h1 className="admin-page-title">Staff & Users ({filteredUsers.length})</h1>
           <p className="admin-page-subtitle">Manage customer accounts, admin roles, and security permissions</p>
         </div>
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="admin-btn-primary"
-        >
-          <Plus size={15} strokeWidth={2} />
-          <span>Add user account</span>
-        </button>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            type="button"
+            onClick={() => loadUsersData()}
+            className="admin-btn-secondary"
+            title="Refresh user list"
+            disabled={loading}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <RefreshCw size={14} className={loading ? "admin-spin" : ""} />
+            <span>Refresh</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenCreate}
+            className="admin-btn-primary"
+          >
+            <Plus size={15} strokeWidth={2} />
+            <span>Add user account</span>
+          </button>
+        </div>
       </div>
 
       {/* Slim Filter Bar */}
@@ -138,13 +178,29 @@ export function AdminUsersClient({ users }: AdminUsersClientProps) {
         </div>
 
         <div style={{ fontSize: "12px", color: "var(--admin-slate-600)" }}>
-          Showing {filteredUsers.length} of {users.length} users
+          Showing {filteredUsers.length} of {userList.length} users
         </div>
       </div>
 
       {/* Data Table */}
       <div className="admin-table-container">
-        {filteredUsers.length === 0 ? (
+        {loading && userList.length === 0 ? (
+          <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--admin-slate-600)" }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                border: "3px solid #E2E8F0",
+                borderTopColor: "#B87078",
+                animation: "spin 0.8s linear infinite",
+                margin: "0 auto 12px"
+              }}
+            />
+            <p style={{ margin: 0, fontSize: "13px" }}>Loading users from database...</p>
+            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          </div>
+        ) : filteredUsers.length === 0 ? (
           <div className="admin-empty-state">
             <Users size={36} className="admin-empty-state__icon" strokeWidth={1.5} />
             <h3 className="admin-empty-state__title">No users found</h3>
@@ -198,8 +254,8 @@ export function AdminUsersClient({ users }: AdminUsersClientProps) {
                       <span
                         className="status-badge"
                         style={{
-                          backgroundColor: isAdmin ? "var(--admin-accent-tint)" : "#F1F3F7",
-                          color: isAdmin ? "var(--admin-accent)" : "var(--admin-slate-600)",
+                          backgroundColor: isAdmin ? "var(--admin-accent-tint, #FDF2F3)" : "#F1F3F7",
+                          color: isAdmin ? "var(--admin-accent, #B87078)" : "var(--admin-slate-600)",
                           fontWeight: isAdmin ? 600 : 500,
                           fontSize: "11px"
                         }}

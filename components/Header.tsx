@@ -60,8 +60,16 @@ export function Header() {
       })
       .catch(() => {});
 
+    const handleBannerUpdate = (e: any) => {
+      if (e.detail && e.detail.announcementBar) {
+        setAnnouncement(e.detail.announcementBar);
+      }
+    };
+    window.addEventListener("nilasa-banners-updated", handleBannerUpdate);
+
     return () => {
       isMounted = false;
+      window.removeEventListener("nilasa-banners-updated", handleBannerUpdate);
     };
   }, []);
 

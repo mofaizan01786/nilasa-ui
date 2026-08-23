@@ -25,8 +25,17 @@ function LoginForm() {
       const res = await loginBackend(email.trim(), password);
 
       if (res.success && res.data?.accessToken) {
+        const userRole = (res.data.role || "").trim().toLowerCase();
+        if (userRole !== "admin") {
+          setError("Access Denied: Only users with the Administrator role can access this portal.");
+          setLoading(false);
+          return;
+        }
+
         window.localStorage.setItem("nilasa-auth-token", res.data.accessToken);
+        window.localStorage.setItem("nilasa-user", JSON.stringify(res.data));
         document.cookie = `nilasa_session=${res.data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `nilasa_role=${res.data.role}; path=/; max-age=604800; SameSite=Lax`;
         window.location.href = from;
       } else {
         setError(res.error || "Invalid email or password.");

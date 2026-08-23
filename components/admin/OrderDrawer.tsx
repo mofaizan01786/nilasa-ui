@@ -21,9 +21,10 @@ interface OrderDrawerProps {
   onClose: () => void;
   order: Order | null;
   onRefunded?: () => void;
+  onUpdated?: (msg?: string) => void;
 }
 
-export function OrderDrawer({ isOpen, onClose, order, onRefunded }: OrderDrawerProps) {
+export function OrderDrawer({ isOpen, onClose, order, onRefunded, onUpdated }: OrderDrawerProps) {
   const [confirmRefundOpen, setConfirmRefundOpen] = useState(false);
   const [refundLoading, setRefundLoading] = useState(false);
   const [refundError, setRefundError] = useState("");

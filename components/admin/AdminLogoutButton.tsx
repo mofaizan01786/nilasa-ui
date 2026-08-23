@@ -9,10 +9,10 @@ export function AdminLogoutButton() {
   function handleLogout() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("nilasa-auth-token");
-      document.cookie = "nilasa_session=; path=/; max-age=0";
+      window.localStorage.removeItem("nilasa-user");
+      document.cookie = "nilasa_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      window.location.href = "/admin/login";
     }
-    router.push("/admin/login");
-    router.refresh();
   }
 
   return (

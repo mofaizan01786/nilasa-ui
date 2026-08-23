@@ -378,10 +378,12 @@ export interface AnnouncementBarConfig {
   link?: string;
 }
 
-export interface HeroBannerConfig {
-  isActive: boolean;
+export interface HeroSlideItem {
+  id: string;
+  isActive?: boolean;
   eyebrow: string;
-  tagPill: string;
+  tagPill?: string;
+  offerBadge?: string;
   headline: string;
   description: string;
   primaryCta: { label: string; href: string };
@@ -391,7 +393,27 @@ export interface HeroBannerConfig {
     title: string;
     subtitle: string;
     href: string;
+    tag?: string;
   };
+}
+
+export interface HeroBannerConfig {
+  isActive: boolean;
+  eyebrow: string;
+  tagPill: string;
+  headline: string;
+  description: string;
+  offerBadge?: string;
+  primaryCta: { label: string; href: string };
+  secondaryCta?: { label: string; href: string };
+  imageUrl: string;
+  featuredPiece?: {
+    title: string;
+    subtitle: string;
+    href: string;
+    tag?: string;
+  };
+  slides?: HeroSlideItem[];
 }
 
 export interface PromotionalOfferBannerConfig {
@@ -409,6 +431,7 @@ export interface BannersConfig {
   updatedAt: string;
   announcementBar: AnnouncementBarConfig;
   heroBanner: HeroBannerConfig;
+  heroSlides?: HeroSlideItem[];
   promotionalOfferBanner: PromotionalOfferBannerConfig;
 }
 

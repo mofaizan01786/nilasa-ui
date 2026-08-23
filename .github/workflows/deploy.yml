@@ -1,0 +1,43 @@
+name: Build and Deploy Nilasa UI Storefront to SmarterASP.NET
+
+on:
+  push:
+    branches:
+      - main
+      - v2-theme
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Next.js Application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'http://win6030.site4now.net/api/v1' }}
+
+      - name: Package for IIS / SmarterASP.NET
+        run: node scripts/package-iis.js --skip-build --keep-dist
+
+      - name: Deploy to SmarterASP.NET via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER || 'win6030.site4now.net' }}
+          username: ${{ secrets.FTP_USERNAME || 'faizanansari-001' }}
+          password: ${{ secrets.FTP_PASSWORD || secrets.SMARTERASP_PASSWORD }}
+          local-dir: ./dist-package/
+          server-dir: ${{ secrets.FTP_SERVER_DIR || '/nilasa/' }}
+          dangerous-clean-slate: false
