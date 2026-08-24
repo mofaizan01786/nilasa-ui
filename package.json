@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
+    "next:start": "next start",
     "server": "node server.js",
     "clean": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true }); try{require('fs').rmSync('node_modules/.cache', { recursive: true, force: true })}catch(e){}\"",
     "lint": "next lint"
