@@ -8,23 +8,35 @@ const app = next({ dev, dir: __dirname });
 const handle = app.getRequestHandler();
 
 function normalizeUrl(req) {
-  let url = req.url || '/';
+  // 1. In IIS + iisnode, IIS rewrites the internal request to 'server.js'
+  // and stores the actual requested URL in the 'x-original-url' (or 'x-rewrite-url') header.
+  let url = '/';
 
-  // 1. Clean IIS rewrite prefix /server.js while preserving all query parameters (?_rsc=..., ?type=..., etc.)
-  if (url.startsWith('/server.js')) {
-    url = url.substring('/server.js'.length) || '/';
-    if (!url.startsWith('/') && !url.startsWith('?')) {
-      url = '/' + url;
-    }
+  if (req.headers && req.headers['x-original-url']) {
+    url = req.headers['x-original-url'];
+  } else if (req.headers && req.headers['x-rewrite-url']) {
+    url = req.headers['x-rewrite-url'];
+  } else if (req.url && !req.url.startsWith('/server.js')) {
+    url = req.url;
+  } else if (req.url && req.url.startsWith('/server.js/')) {
+    url = req.url.substring('/server.js'.length);
   }
 
-  // 2. Clean sub-folder prefix /nilasa if present
+  if (!url || url === '') {
+    url = '/';
+  }
+
+  // 2. Strip /nilasa sub-folder prefix if IIS application is deployed under /nilasa
   if (url === '/nilasa') {
     url = '/';
   } else if (url.startsWith('/nilasa/')) {
-    url = url.substring('/nilasa'.length) || '/';
+    url = url.substring('/nilasa'.length);
   } else if (url.startsWith('/nilasa?')) {
     url = '/' + url.substring('/nilasa'.length);
+  }
+
+  if (!url.startsWith('/')) {
+    url = '/' + url;
   }
 
   return url;
