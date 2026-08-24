@@ -1,12 +1,64 @@
 {
-  "updatedAt": "2026-08-18T13:51:42.462Z",
+  "updatedAt": "2026-08-23T19:58:47.054Z",
   "items": [
+    {
+      "id": "nav-suits",
+      "label": "SUITS",
+      "href": "/category/suits",
+      "isActive": true,
+      "order": 1,
+      "subLinks": [
+        {
+          "id": "suit-1",
+          "label": "All Suits & Sets",
+          "href": "/category/suits"
+        },
+        {
+          "id": "suit-2",
+          "label": "Anarkali Suit Sets",
+          "href": "/category/suits?type=anarkali",
+          "badge": "HOT"
+        },
+        {
+          "id": "suit-3",
+          "label": "Straight Cut Suits",
+          "href": "/category/suits?type=straight"
+        },
+        {
+          "id": "suit-4",
+          "label": "A-Line Festive Suits",
+          "href": "/category/suits?type=aline"
+        },
+        {
+          "id": "suit-5",
+          "label": "Unstitched Suit Sets",
+          "href": "/category/unstitched-suits"
+        }
+      ],
+      "fabricLinks": [
+        {
+          "id": "sfab-1",
+          "label": "Pure Chanderi Silk",
+          "href": "/category/suits?fabric=chanderi"
+        },
+        {
+          "id": "sfab-2",
+          "label": "Handloom Linen",
+          "href": "/category/suits?fabric=linen"
+        },
+        {
+          "id": "sfab-3",
+          "label": "Zari & Brocade",
+          "href": "/category/suits?fabric=zari"
+        }
+      ]
+    },
     {
       "id": "nav-collections",
       "label": "COLLECTIONS",
       "href": "/shop",
       "isActive": true,
-      "order": 1,
+      "order": 2,
       "subLinks": [
         {
           "id": "sub-1",
@@ -63,58 +115,6 @@
         "description": "Handcrafted Chanderi suits woven with pure zari threads.",
         "href": "/shop?q=festive"
       }
-    },
-    {
-      "id": "nav-suits",
-      "label": "SUITS",
-      "href": "/category/suits",
-      "isActive": true,
-      "order": 2,
-      "subLinks": [
-        {
-          "id": "suit-1",
-          "label": "All Suits & Sets",
-          "href": "/category/suits"
-        },
-        {
-          "id": "suit-2",
-          "label": "Anarkali Suit Sets",
-          "href": "/category/suits?type=anarkali",
-          "badge": "HOT"
-        },
-        {
-          "id": "suit-3",
-          "label": "Straight Cut Suits",
-          "href": "/category/suits?type=straight"
-        },
-        {
-          "id": "suit-4",
-          "label": "A-Line Festive Suits",
-          "href": "/category/suits?type=aline"
-        },
-        {
-          "id": "suit-5",
-          "label": "Unstitched Suit Sets",
-          "href": "/category/unstitched-suits"
-        }
-      ],
-      "fabricLinks": [
-        {
-          "id": "sfab-1",
-          "label": "Pure Chanderi Silk",
-          "href": "/category/suits?fabric=chanderi"
-        },
-        {
-          "id": "sfab-2",
-          "label": "Handloom Linen",
-          "href": "/category/suits?fabric=linen"
-        },
-        {
-          "id": "sfab-3",
-          "label": "Zari & Brocade",
-          "href": "/category/suits?fabric=zari"
-        }
-      ]
     },
     {
       "id": "nav-kurtis",
