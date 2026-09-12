@@ -84,6 +84,18 @@ async function safeFetch(url: string, options?: RequestInit): Promise<Response |
       }
     }
 
+    if (res && res.status === 429 && typeof window !== "undefined") {
+      let retrySeconds = 60;
+      try {
+        const body = await res.clone().json();
+        if (body?.retryAfterSeconds) retrySeconds = body.retryAfterSeconds;
+      } catch {
+        const retryHeader = res.headers.get("Retry-After");
+        if (retryHeader) retrySeconds = parseInt(retryHeader, 10) || 60;
+      }
+      window.dispatchEvent(new CustomEvent("nilasa:rate_limited", { detail: { retryAfterSeconds: retrySeconds } }));
+    }
+
     return res;
   } catch {
     // Backend offline / unreachable — silently return null
