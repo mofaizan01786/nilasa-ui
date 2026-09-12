@@ -329,7 +329,6 @@ export function Header() {
                   title={`Logged in as ${firstName}`}
                 >
                   <UserIcon size={20} strokeWidth={1.9} />
-                  <span className="customer-btn-label">{firstName}</span>
                 </Link>
               ) : (
                 <Link
@@ -339,21 +338,18 @@ export function Header() {
                   title="Customer Sign In"
                 >
                   <UserIcon size={20} strokeWidth={1.9} />
-                  <span className="customer-btn-label">Sign In</span>
                 </Link>
               )}
 
               {/* Wishlist Button with Counter Badge (Desktop Only) */}
               <Link href="/wishlist" className="wishlist-link desktop-only-link" aria-label={`Wishlist (${wishlistCount} items)`} title="My Wishlist">
                 <Heart size={20} strokeWidth={1.9} />
-                <span className="wishlist-link-text">Wishlist</span>
                 {mounted && wishlistCount > 0 && <span className="wishlist-count">{wishlistCount}</span>}
               </Link>
 
               {/* Shopping Bag Button with Counter Badge */}
-              <Link href="/cart" className="cart-link" aria-label={`Shopping Bag (${cartCount} items)`}>
+              <Link href="/cart" className="cart-link" aria-label={`Shopping Bag (${cartCount} items)`} title="Shopping Bag">
                 <ShoppingBag size={20} strokeWidth={1.9} />
-                <span className="cart-link-text">Bag</span>
                 {mounted && cartCount > 0 && <span className="cart-count">{cartCount}</span>}
               </Link>
             </div>

@@ -896,19 +896,18 @@ img {
 .customer-signin-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 999px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   background: #FFFFFF;
   border: 1px solid var(--nilasa-border);
-  font-family: var(--font-body), sans-serif;
-  font-size: 0.82rem;
-  font-weight: 600;
   color: var(--nilasa-indigo);
   text-decoration: none;
   transition: all 0.2s ease;
   flex-shrink: 0;
-  white-space: nowrap;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .customer-account-btn:hover,
@@ -916,6 +915,12 @@ img {
   border-color: var(--nilasa-gold);
   color: var(--nilasa-indigo);
   background: #FAF8FD;
+}
+
+.customer-btn-label,
+.wishlist-link-text,
+.cart-link-text {
+  display: none !important;
 }
 
 .search-pill-icon {
@@ -1570,28 +1575,37 @@ img {
 
 .wishlist-link,
 .cart-link {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: var(--nilasa-indigo);
-  font-family: var(--font-body), sans-serif;
-  font-size: 0.82rem;
-  font-weight: 600;
-  padding: 8px 16px;
+  justify-content: center;
+  gap: 6px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 10px;
   border-radius: 999px;
   background: #FFFFFF;
   border: 1px solid var(--nilasa-border);
+  color: var(--nilasa-indigo);
   transition: all 0.2s ease;
   text-decoration: none;
   flex-shrink: 0;
   white-space: nowrap;
   position: relative;
+  box-sizing: border-box;
+}
+
+.wishlist-link:not(:has(.wishlist-count)),
+.cart-link:not(:has(.cart-count)) {
+  width: 38px;
+  padding: 0;
+  border-radius: 50%;
 }
 
 .wishlist-link:hover,
 .cart-link:hover {
   border-color: var(--nilasa-gold);
   color: var(--nilasa-indigo);
+  background: #FAF8FD;
 }
 
 .wishlist-count {

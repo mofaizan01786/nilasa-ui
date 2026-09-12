@@ -102,13 +102,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    const handleRateLimited = (e: Event) => {
+      const seconds = (e as CustomEvent)?.detail?.retryAfterSeconds || 60;
+      alert(`Too many requests. Please try again in ${seconds} seconds.`);
+    };
+
     window.addEventListener("nilasa:auth_unauthorized", handleUnauthorized);
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("nilasa:rate_limited", handleRateLimited);
 
     return () => {
       isMounted = false;
       window.removeEventListener("nilasa:auth_unauthorized", handleUnauthorized);
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("nilasa:rate_limited", handleRateLimited);
     };
   }, [logout]);
 
