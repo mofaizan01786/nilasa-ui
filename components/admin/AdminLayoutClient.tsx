@@ -314,7 +314,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         <AdminSidebarResponsive />
 
         {/* Main Admin Workspace Area with Top Bar */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <div className="admin-main-wrapper">
           <AdminTopHeader />
           <main className="admin-content-area">{children}</main>
         </div>

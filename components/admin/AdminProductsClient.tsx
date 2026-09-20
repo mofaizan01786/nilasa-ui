@@ -1,22 +1,24 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Product, Category, ProductStatus } from "@/lib/types";
+import { Product, Category } from "@/lib/types";
 import { formatPrice, getProductImage } from "@/lib/catalog";
 import { ProductDrawer } from "./ProductDrawer";
 import { ProductStatusToggle } from "./ProductStatusToggle";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { AdminToast } from "./AdminToast";
-import { deleteProduct } from "@/lib/dotnet-backend";
+import { AdminTablePagination } from "./AdminTablePagination";
+import { deleteProduct, fetchProductsAdminPaged } from "@/lib/dotnet-backend";
 import {
   Plus,
   Pencil,
   Trash2,
   Package,
   Search,
-  ArrowUpDown
+  ArrowUpDown,
+  RefreshCw
 } from "lucide-react";
 
 interface AdminProductsClientProps {
@@ -33,7 +35,15 @@ export function AdminProductsClient({
   currentStatusFilter = ""
 }: AdminProductsClientProps) {
   const router = useRouter();
-  const rawProducts = initialProducts || products;
+
+  // Data & Pagination States
+  const [productList, setProductList] = useState<Product[]>(initialProducts || products || []);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
+  const [totalPages, setTotalPages] = useState<number | undefined>(undefined);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // Drawers & Modals
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -51,6 +61,73 @@ export function AdminProductsClient({
 
   // Feedback Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch Paged Products from Backend API
+  const loadPagedProducts = useCallback(async (page: number, size: number, status: string, query: string) => {
+    setLoading(true);
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("nilasa-auth-token") || undefined
+          : undefined;
+
+      const result = await fetchProductsAdminPaged(
+        page,
+        size,
+        status === "ALL" ? undefined : status,
+        query || undefined,
+        token
+      );
+
+      if (result && Array.isArray(result.items)) {
+        setProductList(result.items);
+        setHasMore(result.hasMore);
+        if (result.totalCount !== undefined) {
+          setTotalCount(result.totalCount);
+        }
+        if (result.totalPages !== undefined) {
+          setTotalPages(result.totalPages);
+        }
+      }
+    } catch (err) {
+      console.error("[AdminProducts] Failed to load products:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Trigger load when page, pageSize, status, or search changes
+  useEffect(() => {
+    loadPagedProducts(currentPage, pageSize, statusFilter, searchQuery);
+  }, [currentPage, pageSize, statusFilter, loadPagedProducts]);
+
+  // Debounced search handler (resets page to 1)
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setCurrentPage(1);
+      loadPagedProducts(1, pageSize, statusFilter, val);
+    }, 350);
+  };
+
+  const handleStatusFilterChange = (val: string) => {
+    setStatusFilter(val);
+    setCurrentPage(1);
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1) return;
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const handleOpenCreate = () => {
     setEditingProduct(null);
@@ -77,6 +154,7 @@ export function AdminProductsClient({
       if (success) {
         setDeleteModalOpen(false);
         setToastMessage(`Archived "${productToDelete.name}"`);
+        loadPagedProducts(currentPage, pageSize, statusFilter, searchQuery);
         router.refresh();
       }
     } catch {
@@ -88,33 +166,17 @@ export function AdminProductsClient({
 
   const handleReload = (msg?: string) => {
     if (msg) setToastMessage(msg);
+    loadPagedProducts(currentPage, pageSize, statusFilter, searchQuery);
     router.refresh();
   };
 
-  // Filtered & Sorted Products
-  const filteredProducts = useMemo(() => {
-    let list = [...rawProducts];
-
-    if (statusFilter && statusFilter !== "ALL") {
-      list = list.filter(
-        (p) => p.status.toLowerCase() === statusFilter.toLowerCase()
-      );
-    }
+  // Local Category Filter & Sorting
+  const displayedProducts = useMemo(() => {
+    let list = [...productList];
 
     if (categoryFilter && categoryFilter !== "ALL") {
       const catId = parseInt(categoryFilter, 10);
       list = list.filter((p) => p.categoryId === catId);
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.slug.toLowerCase().includes(q) ||
-          p.categoryName?.toLowerCase().includes(q) ||
-          p.variants?.some((v) => v.sku?.toLowerCase().includes(q))
-      );
     }
 
     list.sort((a, b) => {
@@ -134,7 +196,7 @@ export function AdminProductsClient({
     });
 
     return list;
-  }, [rawProducts, statusFilter, categoryFilter, searchQuery, sortBy, sortOrder]);
+  }, [productList, categoryFilter, sortBy, sortOrder]);
 
   const toggleSort = (field: "name" | "price" | "id") => {
     if (sortBy === field) {
@@ -145,8 +207,11 @@ export function AdminProductsClient({
     }
   };
 
+  const startCount = productList.length > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const endCount = (currentPage - 1) * pageSize + productList.length;
+
   return (
-    <div>
+    <div className="admin-page-root">
       {toastMessage && (
         <AdminToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
@@ -154,17 +219,35 @@ export function AdminProductsClient({
       {/* Page Header */}
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Products ({filteredProducts.length})</h1>
-          <p className="admin-page-subtitle">Manage catalog SKUs, size variants and inventory stock</p>
+          <h1 className="admin-page-title">
+            Products {totalCount !== undefined ? `(${totalCount})` : `(Page ${currentPage})`}
+          </h1>
+          <p className="admin-page-subtitle">
+            Showing {startCount} – {endCount} {totalCount ? `of ${totalCount}` : ""} catalog SKUs across collections
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="admin-btn-primary"
-        >
-          <Plus size={15} strokeWidth={2} />
-          <span>Add product SKU</span>
-        </button>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            type="button"
+            onClick={() => loadPagedProducts(currentPage, pageSize, statusFilter, searchQuery)}
+            disabled={loading}
+            className="admin-btn-secondary"
+            title="Refresh Inventory"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <RefreshCw size={14} className={loading ? "admin-spin" : ""} />
+            <span>Refresh</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenCreate}
+            className="admin-btn-primary"
+          >
+            <Plus size={15} strokeWidth={2} />
+            <span>Add product SKU</span>
+          </button>
+        </div>
       </div>
 
       {/* Slim Filter Bar above Table */}
@@ -181,7 +264,7 @@ export function AdminProductsClient({
               type="text"
               placeholder="Search SKU or title..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="admin-search-input"
             />
           </div>
@@ -189,7 +272,7 @@ export function AdminProductsClient({
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => handleStatusFilterChange(e.target.value)}
             className="admin-select-filter"
           >
             <option value="ALL">All Statuses</option>
@@ -213,21 +296,27 @@ export function AdminProductsClient({
           </select>
         </div>
 
-        <div style={{ fontSize: "12px", color: "var(--admin-slate-600)" }}>
-          Showing {filteredProducts.length} of {rawProducts.length} products
+        <div style={{ fontSize: "12.5px", color: "var(--admin-slate-600)" }}>
+          {loading ? (
+            <span>Loading page {currentPage}...</span>
+          ) : (
+            <span>
+              Page <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong> • Showing {displayedProducts.length} items
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Data Table */}
+      {/* Data Table Container */}
       <div className="admin-table-container">
-        {filteredProducts.length === 0 ? (
+        {displayedProducts.length === 0 && !loading ? (
           <div className="admin-empty-state">
             <Package size={36} className="admin-empty-state__icon" strokeWidth={1.5} />
             <h3 className="admin-empty-state__title">No products found</h3>
             <p className="admin-empty-state__desc">
               {searchQuery || statusFilter !== "ALL"
                 ? "No products matched your current filters. Try resetting your search."
-                : "No products in your catalog yet. Create your first product SKU to get started."}
+                : "No products in your catalog on this page."}
             </p>
             <button
               type="button"
@@ -235,49 +324,50 @@ export function AdminProductsClient({
               className="admin-btn-primary"
             >
               <Plus size={14} />
-              <span>Add your first product</span>
+              <span>Add product</span>
             </button>
           </div>
         ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th style={{ width: 44 }}>Photo</th>
-                <th
-                  onClick={() => toggleSort("name")}
-                  style={{ cursor: "pointer" }}
-                  title="Sort by Title"
-                >
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <span>Product Name</span>
-                    <ArrowUpDown size={11} />
-                  </div>
-                </th>
-                <th>Category</th>
-                <th
-                  onClick={() => toggleSort("price")}
-                  style={{ cursor: "pointer", textAlign: "right" }}
-                  title="Sort by Price"
-                >
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
-                    <span>Price</span>
-                    <ArrowUpDown size={11} />
-                  </div>
-                </th>
-                <th style={{ textAlign: "right" }}>Variants</th>
-                <th>Status</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.map((product) => {
-                const pid = product.productId || product.id || 0;
-                const img = getProductImage(product);
-                return (
-                  <tr key={pid || product.slug}>
-                    <td>
-                      <div
-                        style={{
+          <div className="admin-table-scroll">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 44 }}>Photo</th>
+                  <th
+                    onClick={() => toggleSort("name")}
+                    style={{ cursor: "pointer" }}
+                    title="Sort by Title"
+                  >
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <span>Product Name</span>
+                      <ArrowUpDown size={11} />
+                    </div>
+                  </th>
+                  <th>Category</th>
+                  <th
+                    onClick={() => toggleSort("price")}
+                    style={{ cursor: "pointer", textAlign: "right" }}
+                    title="Sort by Price"
+                  >
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
+                      <span>Price</span>
+                      <ArrowUpDown size={11} />
+                    </div>
+                  </th>
+                  <th style={{ textAlign: "right" }}>Variants</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedProducts.map((product) => {
+                  const pid = product.productId || product.id || 0;
+                  const img = getProductImage(product);
+                  return (
+                    <tr key={pid || product.slug}>
+                      <td>
+                        <div
+                          style={{
                           width: 36,
                           height: 44,
                           position: "relative",
@@ -337,7 +427,23 @@ export function AdminProductsClient({
               })}
             </tbody>
           </table>
+          </div>
         )}
+
+        {/* Server-Side Pagination Bar */}
+        <AdminTablePagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={totalCount}
+          totalPages={totalPages}
+          currentCount={productList.length}
+          hasMore={hasMore}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          pageSizeOptions={[20, 50, 100]}
+          itemLabel="products"
+          loading={loading}
+        />
       </div>
 
       {/* Product Drawer (Create / Edit) */}

@@ -6,13 +6,10 @@ import {
   FilterOptions, ProductFilterParams, ShippingAddress, CartItem,
   CreateBackendOrderPayload, BackendShippingAddressDto, PaymentInitiationResult, VerifyPaymentRequest, VerifyPaymentResult,
   AuthoritativeOrderDetailsDto, SavedAddress, CreateAddressPayload, UpdateAddressPayload,
-  AuthMethodsResponse, SendOtpPayload, SendOtpResponse, VerifyOtpPayload, AdminAuthSettings, UpdateAdminAuthSettingsPayload
+  AuthMethodsResponse, SendOtpPayload, SendOtpResponse, VerifyOtpPayload, AdminAuthSettings, UpdateAdminAuthSettingsPayload,
+  PagedAdminResult
 } from "./types";
 import { resolveProductImageUrl } from "./catalog";
-
-if (typeof process !== "undefined" && process.env) {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-}
 
 // ─── Base URLs (Dynamically sourced from environment variables) ───
 export const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "https://nilasabackend.geecera.com/api/v1";
@@ -280,13 +277,86 @@ export async function fetchCategories(): Promise<Category[]> {
 
 // ─── ADMIN API (Products CRUD) ──────────────────────────
 
-export async function fetchAllProductsAdmin(statusFilter?: string, token?: string): Promise<Product[]> {
-  const headers = await getAuthHeadersAsync(token);
-  const res = await safeFetch(`${getApiBaseUrl()}/products/admin`, { headers, cache: "no-store" });
+export async function fetchProductsAdminPaged(
+  page = 1,
+  pageSize = 20,
+  statusFilter?: string,
+  search?: string,
+  token?: string
+): Promise<PagedAdminResult<Product>> {
+  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
+  if (search && search.trim()) {
+    params.set("search", search.trim());
+  }
+
+  const res = await safeFetch(`${getApiBaseUrl()}/products/admin?${params.toString()}`, {
+    headers,
+    cache: "no-store"
+  });
+
   if (res && res.ok) {
     try {
-      let data: Product[] = (await res.json()).map(normaliseProduct);
-      if (statusFilter) {
+      const headerTotal = res.headers.get("x-total-count") || res.headers.get("X-Total-Count");
+      const headerPages = res.headers.get("x-total-pages") || res.headers.get("X-Total-Pages");
+      const headerPage = res.headers.get("x-page") || res.headers.get("X-Page");
+      const headerPageSize = res.headers.get("x-page-size") || res.headers.get("X-Page-Size");
+
+      const raw = await res.json();
+      let itemsList: Product[] = [];
+      let totalCount: number | undefined = headerTotal ? parseInt(headerTotal, 10) : undefined;
+
+      if (Array.isArray(raw)) {
+        itemsList = raw.map(normaliseProduct);
+      } else if (raw && Array.isArray(raw.items)) {
+        itemsList = raw.items.map(normaliseProduct);
+        if (typeof raw.totalCount === "number") totalCount = raw.totalCount;
+      }
+
+      if (statusFilter && statusFilter !== "ALL") {
+        itemsList = itemsList.filter(
+          (p) => p.status.toLowerCase() === statusFilter.toLowerCase()
+        );
+      }
+
+      const effectivePage = headerPage ? parseInt(headerPage, 10) : page;
+      const effectivePageSize = headerPageSize ? parseInt(headerPageSize, 10) : pageSize;
+      const totalPages = headerPages ? parseInt(headerPages, 10) : (totalCount ? Math.ceil(totalCount / effectivePageSize) : 1);
+      const hasMore = totalCount !== undefined ? effectivePage * effectivePageSize < totalCount : itemsList.length >= effectivePageSize;
+
+      return {
+        items: itemsList,
+        page: effectivePage,
+        pageSize: effectivePageSize,
+        totalCount,
+        totalPages,
+        hasMore
+      };
+    } catch {
+      // json parse error
+    }
+  }
+
+  return {
+    items: [],
+    page,
+    pageSize,
+    totalCount: 0,
+    totalPages: 1,
+    hasMore: false
+  };
+}
+
+export async function fetchAllProductsAdmin(statusFilter?: string, token?: string): Promise<Product[]> {
+  const headers = await getAuthHeadersAsync(token);
+  const res = await safeFetch(`${getApiBaseUrl()}/products/admin?pageSize=100`, { headers, cache: "no-store" });
+  if (res && res.ok) {
+    try {
+      const raw = await res.json();
+      let data: Product[] = (Array.isArray(raw) ? raw : (raw.items || [])).map(normaliseProduct);
+      if (statusFilter && statusFilter !== "ALL") {
         data = data.filter(p => p.status.toLowerCase() === statusFilter.toLowerCase());
       }
       return data;
@@ -495,16 +565,82 @@ export async function updateCategory(
 
 export async function fetchCouponsAdmin(token?: string): Promise<Coupon[]> {
   const headers = await getAuthHeadersAsync(token);
-  const res = await safeFetch(`${getApiBaseUrl()}/coupons`, { headers, cache: "no-store" });
+  const res = await safeFetch(`${getApiBaseUrl()}/coupons?pageSize=100`, { headers, cache: "no-store" });
   if (res && res.ok) {
     try {
       const data = await res.json();
       if (Array.isArray(data)) return data.map(normaliseCoupon);
+      if (data && Array.isArray(data.items)) return data.items.map(normaliseCoupon);
     } catch {
       // json error
     }
   }
   return [];
+}
+
+export async function fetchCouponsAdminPaged(
+  page = 1,
+  pageSize = 20,
+  search?: string,
+  token?: string
+): Promise<PagedAdminResult<Coupon>> {
+  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
+  if (search && search.trim()) {
+    params.set("search", search.trim());
+  }
+
+  const res = await safeFetch(`${getApiBaseUrl()}/coupons?${params.toString()}`, {
+    headers,
+    cache: "no-store"
+  });
+
+  if (res && res.ok) {
+    try {
+      const headerTotal = res.headers.get("x-total-count") || res.headers.get("X-Total-Count");
+      const headerPages = res.headers.get("x-total-pages") || res.headers.get("X-Total-Pages");
+      const headerPage = res.headers.get("x-page") || res.headers.get("X-Page");
+      const headerPageSize = res.headers.get("x-page-size") || res.headers.get("X-Page-Size");
+
+      const raw = await res.json();
+      let couponsList: Coupon[] = [];
+      let totalCount: number | undefined = headerTotal ? parseInt(headerTotal, 10) : undefined;
+
+      if (Array.isArray(raw)) {
+        couponsList = raw.map(normaliseCoupon);
+      } else if (raw && Array.isArray(raw.items)) {
+        couponsList = raw.items.map(normaliseCoupon);
+        if (typeof raw.totalCount === "number") totalCount = raw.totalCount;
+      }
+
+      const effectivePage = headerPage ? parseInt(headerPage, 10) : page;
+      const effectivePageSize = headerPageSize ? parseInt(headerPageSize, 10) : pageSize;
+      const totalPages = headerPages ? parseInt(headerPages, 10) : (totalCount ? Math.ceil(totalCount / effectivePageSize) : 1);
+      const hasMore = totalCount !== undefined ? effectivePage * effectivePageSize < totalCount : couponsList.length >= effectivePageSize;
+
+      return {
+        items: couponsList,
+        page: effectivePage,
+        pageSize: effectivePageSize,
+        totalCount,
+        totalPages,
+        hasMore
+      };
+    } catch {
+      // json error
+    }
+  }
+
+  return {
+    items: [],
+    page,
+    pageSize,
+    totalCount: 0,
+    totalPages: 1,
+    hasMore: false
+  };
 }
 
 export async function createCoupon(
@@ -868,6 +1004,81 @@ export async function fetchOrdersAuthoritative(
 }
 
 // ─── ADMIN ORDER RETRIEVAL (Authoritative .NET API) ──────
+
+export async function fetchOrdersAdminPaged(
+  page = 1,
+  pageSize = 20,
+  statusFilter?: string,
+  search?: string,
+  token?: string
+): Promise<PagedAdminResult<Order>> {
+  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
+  if (statusFilter && statusFilter !== "ALL") {
+    params.set("status", statusFilter);
+  }
+  if (search && search.trim()) {
+    params.set("search", search.trim());
+  }
+
+  const backendRes = await safeFetch(`${getApiBaseUrl()}/orders?${params.toString()}`, {
+    headers,
+    cache: "no-store"
+  });
+
+  if (backendRes && backendRes.ok) {
+    try {
+      const headerTotal = backendRes.headers.get("x-total-count") || backendRes.headers.get("X-Total-Count");
+      const headerPages = backendRes.headers.get("x-total-pages") || backendRes.headers.get("X-Total-Pages");
+      const headerPage = backendRes.headers.get("x-page") || backendRes.headers.get("X-Page");
+      const headerPageSize = backendRes.headers.get("x-page-size") || backendRes.headers.get("X-Page-Size");
+
+      const raw = await backendRes.json();
+      let ordersList: Order[] = [];
+      let totalCount: number | undefined = headerTotal ? parseInt(headerTotal, 10) : undefined;
+
+      if (Array.isArray(raw)) {
+        ordersList = raw.map(normaliseOrder);
+      } else if (raw && Array.isArray(raw.items)) {
+        ordersList = raw.items.map(normaliseOrder);
+        if (typeof raw.totalCount === "number") totalCount = raw.totalCount;
+      }
+
+      if (statusFilter && statusFilter !== "ALL") {
+        ordersList = ordersList.filter(
+          (o) => String(o.status || "").toLowerCase() === statusFilter.toLowerCase()
+        );
+      }
+
+      const effectivePage = headerPage ? parseInt(headerPage, 10) : page;
+      const effectivePageSize = headerPageSize ? parseInt(headerPageSize, 10) : pageSize;
+      const totalPages = headerPages ? parseInt(headerPages, 10) : (totalCount ? Math.ceil(totalCount / effectivePageSize) : 1);
+      const hasMore = totalCount !== undefined ? effectivePage * effectivePageSize < totalCount : ordersList.length >= effectivePageSize;
+
+      return {
+        items: ordersList,
+        page: effectivePage,
+        pageSize: effectivePageSize,
+        totalCount,
+        totalPages,
+        hasMore
+      };
+    } catch {
+      // json parse error
+    }
+  }
+
+  return {
+    items: [],
+    page,
+    pageSize,
+    totalCount: 0,
+    totalPages: 1,
+    hasMore: false
+  };
+}
 
 export async function fetchOrdersAdmin(statusFilter?: string, token?: string): Promise<Order[]> {
   const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
@@ -1281,6 +1492,85 @@ export async function refreshTokenBackend(accessToken: string, refreshToken: str
 }
 
 // ─── USER MANAGEMENT (Admin Only) ───────────────────────
+
+export async function fetchUsersAdminPaged(
+  page = 1,
+  pageSize = 20,
+  role?: string,
+  search?: string,
+  token?: string
+): Promise<PagedAdminResult<User>> {
+  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const skip = (page - 1) * pageSize;
+  const take = pageSize;
+
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
+  params.set("skip", String(skip));
+  params.set("take", String(take));
+  if (role && role !== "ALL") params.set("role", role);
+  if (search && search.trim()) params.set("search", search.trim());
+
+  const res = await safeFetch(`${getApiBaseUrl()}/users?${params.toString()}`, {
+    headers,
+    cache: "no-store"
+  });
+
+  if (res && res.ok) {
+    try {
+      const headerTotal = res.headers.get("x-total-count") || res.headers.get("X-Total-Count");
+      const headerPages = res.headers.get("x-total-pages") || res.headers.get("X-Total-Pages");
+      const headerPage = res.headers.get("x-page") || res.headers.get("X-Page");
+      const headerPageSize = res.headers.get("x-page-size") || res.headers.get("X-Page-Size");
+
+      const raw = await res.json();
+      let usersList: User[] = [];
+      let totalCount: number | undefined = headerTotal ? parseInt(headerTotal, 10) : undefined;
+
+      const rawArray = Array.isArray(raw) ? raw : Array.isArray(raw.items) ? raw.items : [];
+      if (raw && typeof raw.totalCount === "number") {
+        totalCount = raw.totalCount;
+      }
+
+      usersList = rawArray.map((u: any) => ({
+        userId: u.userId ?? u.id ?? 1,
+        id: u.userId ?? u.id ?? 1,
+        name: u.name || "",
+        email: u.email || "",
+        phone: u.phone || "",
+        role: u.role || "Customer",
+        isActive: u.isActive !== undefined ? u.isActive : true,
+        createdAt: u.createdAt
+      }));
+
+      const effectivePage = headerPage ? parseInt(headerPage, 10) : page;
+      const effectivePageSize = headerPageSize ? parseInt(headerPageSize, 10) : pageSize;
+      const totalPages = headerPages ? parseInt(headerPages, 10) : (totalCount ? Math.ceil(totalCount / effectivePageSize) : 1);
+      const hasMore = totalCount !== undefined ? effectivePage * effectivePageSize < totalCount : usersList.length >= effectivePageSize;
+
+      return {
+        items: usersList,
+        page: effectivePage,
+        pageSize: effectivePageSize,
+        totalCount,
+        totalPages,
+        hasMore
+      };
+    } catch {
+      // json error
+    }
+  }
+
+  return {
+    items: [],
+    page,
+    pageSize,
+    totalCount: 0,
+    totalPages: 1,
+    hasMore: false
+  };
+}
 
 export async function fetchUsersAdmin(
   skip = 0,

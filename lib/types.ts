@@ -8,6 +8,15 @@ export type OrderStatus = "Pending" | "Confirmed" | "Shipped" | "Delivered" | "C
 export type PaymentStatus = "Pending" | "Completed" | "Failed" | "Refunded" | "Success";
 export type DiscountType = "percentage" | "flat" | "Percentage" | "Flat";
 
+export interface PagedAdminResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount?: number;
+  totalPages?: number;
+  hasMore: boolean;
+}
+
 // ─── Products ───────────────────────────────────────────
 
 export interface ProductVariant {

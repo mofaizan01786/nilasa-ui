@@ -313,7 +313,9 @@ function LoginForm() {
                 height: "auto",
                 objectFit: "contain",
                 margin: "0 auto",
-                display: "block"
+                display: "block",
+                filter: "brightness(0)",
+                opacity: 0.92
               }}
             />
           </Link>
@@ -350,11 +352,11 @@ function LoginForm() {
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
               gap: 6,
-              background: "#F8F5F0",
-              padding: 4,
+              background: "#F1EBE4",
+              padding: "4px",
               borderRadius: 12,
               marginBottom: 22,
-              border: "1px solid var(--nilasa-border)"
+              border: "1px solid rgba(198, 146, 68, 0.2)"
             }}
           >
             <button
@@ -369,19 +371,19 @@ function LoginForm() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 7,
-                padding: "10px 12px",
+                padding: "10px 14px",
                 borderRadius: 9,
                 border: "none",
                 fontSize: "12.5px",
-                fontWeight: activeTab === "phone" ? 700 : 500,
-                color: activeTab === "phone" ? "var(--nilasa-indigo)" : "var(--ink-muted)",
-                backgroundColor: activeTab === "phone" ? "#FFFFFF" : "transparent",
-                boxShadow: activeTab === "phone" ? "0 2px 8px rgba(32, 43, 69, 0.08)" : "none",
+                fontWeight: activeTab === "phone" ? 700 : 600,
+                color: activeTab === "phone" ? "#FFFFFF" : "#64748B",
+                backgroundColor: activeTab === "phone" ? "var(--nilasa-indigo)" : "transparent",
+                boxShadow: activeTab === "phone" ? "0 4px 12px rgba(32, 43, 69, 0.22)" : "none",
                 cursor: "pointer",
                 transition: "all 0.18s ease"
               }}
             >
-              <Smartphone size={15} color={activeTab === "phone" ? "var(--nilasa-gold)" : "currentColor"} />
+              <Smartphone size={15} color={activeTab === "phone" ? "#E2B874" : "#94A3B8"} />
               <span>Mobile OTP</span>
             </button>
 
@@ -397,19 +399,19 @@ function LoginForm() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 7,
-                padding: "10px 12px",
+                padding: "10px 14px",
                 borderRadius: 9,
                 border: "none",
                 fontSize: "12.5px",
-                fontWeight: activeTab === "email" ? 700 : 500,
-                color: activeTab === "email" ? "var(--nilasa-indigo)" : "var(--ink-muted)",
-                backgroundColor: activeTab === "email" ? "#FFFFFF" : "transparent",
-                boxShadow: activeTab === "email" ? "0 2px 8px rgba(32, 43, 69, 0.08)" : "none",
+                fontWeight: activeTab === "email" ? 700 : 600,
+                color: activeTab === "email" ? "#FFFFFF" : "#64748B",
+                backgroundColor: activeTab === "email" ? "var(--nilasa-indigo)" : "transparent",
+                boxShadow: activeTab === "email" ? "0 4px 12px rgba(32, 43, 69, 0.22)" : "none",
                 cursor: "pointer",
                 transition: "all 0.18s ease"
               }}
             >
-              <Mail size={15} color={activeTab === "email" ? "var(--nilasa-gold)" : "currentColor"} />
+              <Mail size={15} color={activeTab === "email" ? "#E2B874" : "#94A3B8"} />
               <span>Email & Password</span>
             </button>
           </div>

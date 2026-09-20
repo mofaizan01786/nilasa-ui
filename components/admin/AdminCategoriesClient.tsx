@@ -51,7 +51,7 @@ export function AdminCategoriesClient({ categories }: AdminCategoriesClientProps
   }, [categories, searchQuery]);
 
   return (
-    <div>
+    <div className="admin-page-root">
       {toastMessage && (
         <AdminToast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
@@ -118,51 +118,53 @@ export function AdminCategoriesClient({ categories }: AdminCategoriesClientProps
             </button>
           </div>
         ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th style={{ width: 80 }}>ID</th>
-                <th>Category Name</th>
-                <th>URL Slug</th>
-                <th>Parent Category</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCategories.map((cat) => {
-                const cid = cat.categoryId || cat.id || 0;
-                const parent = categories.find((c) => (c.categoryId || c.id) === cat.parentCategoryId);
-                return (
-                  <tr key={cid || cat.slug}>
-                    <td style={{ color: "var(--admin-slate-600)", fontWeight: 600 }} className="admin-tabular">
-                      #{cid}
-                    </td>
-                    <td>
-                      <strong style={{ color: "var(--admin-ink)" }}>{cat.name}</strong>
-                    </td>
-                    <td>
-                      <code style={{ fontSize: "12px", color: "var(--admin-slate-600)", background: "#F1F3F7", padding: "2px 6px", borderRadius: 4 }}>
-                        /{cat.slug}
-                      </code>
-                    </td>
-                    <td style={{ color: "var(--admin-slate-600)" }}>
-                      {parent ? parent.name : <span style={{ color: "var(--admin-slate-400)" }}>Top-level</span>}
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(cat)}
-                        className="admin-table-btn"
-                      >
-                        <Pencil size={12} />
-                        <span>Edit</span>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="admin-table-scroll">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 80 }}>ID</th>
+                  <th>Category Name</th>
+                  <th>URL Slug</th>
+                  <th>Parent Category</th>
+                  <th style={{ textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCategories.map((cat) => {
+                  const cid = cat.categoryId || cat.id || 0;
+                  const parent = categories.find((c) => (c.categoryId || c.id) === cat.parentCategoryId);
+                  return (
+                    <tr key={cid || cat.slug}>
+                      <td style={{ color: "var(--admin-slate-600)", fontWeight: 600 }} className="admin-tabular">
+                        #{cid}
+                      </td>
+                      <td>
+                        <strong style={{ color: "var(--admin-ink)" }}>{cat.name}</strong>
+                      </td>
+                      <td>
+                        <code style={{ fontSize: "12px", color: "var(--admin-slate-600)", background: "#F1F3F7", padding: "2px 6px", borderRadius: 4 }}>
+                          /{cat.slug}
+                        </code>
+                      </td>
+                      <td style={{ color: "var(--admin-slate-600)" }}>
+                        {parent ? parent.name : <span style={{ color: "var(--admin-slate-400)" }}>Top-level</span>}
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(cat)}
+                          className="admin-table-btn"
+                        >
+                          <Pencil size={12} />
+                          <span>Edit</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
