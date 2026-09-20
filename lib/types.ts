@@ -326,6 +326,57 @@ export interface RegisterCustomerPayload {
   verificationCode?: string;
 }
 
+// ─── Mobile OTP & Auth Methods ───────────────────────────
+
+export interface OtpConfig {
+  length: number;
+  resendCooldownSeconds: number;
+  defaultCountryCode: string;
+  allowedCountries: string[];
+}
+
+export interface AuthMethodsResponse {
+  google: boolean;
+  mobileOtp: boolean;
+  otp?: OtpConfig;
+}
+
+export interface SendOtpPayload {
+  phone: string;
+  deviceId: string;
+}
+
+export interface SendOtpResponse {
+  success: boolean;
+  resendAfterSeconds?: number;
+  message?: string;
+}
+
+export interface VerifyOtpPayload {
+  phone: string;
+  otp: string;
+  deviceId: string;
+}
+
+export interface AdminAuthSettings {
+  googleEnabled: boolean;
+  googleEnabledByConfig?: boolean;
+  mobileOtpEnabled: boolean;
+  mobileOtpEnabledByConfig?: boolean;
+  otpLength?: number;
+  resendCooldownSeconds?: number;
+  defaultCountryCode?: string;
+  allowedCountries?: string[];
+}
+
+export interface UpdateAdminAuthSettingsPayload {
+  googleEnabled?: boolean;
+  mobileOtpEnabled?: boolean;
+  otpLength?: number;
+  resendCooldownSeconds?: number;
+  defaultCountryCode?: string;
+}
+
 // ─── Payment Initiation ─────────────────────────────────
 
 export interface PaymentInitiationResult {

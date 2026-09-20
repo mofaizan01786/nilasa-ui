@@ -1,51 +1,89 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Package,
-  FolderTree,
   ShoppingBag,
-  Tag,
+  Package,
   Users,
+  Hammer,
+  BarChart3,
+  Tag,
+  Puzzle,
+  HelpCircle,
+  Settings,
+  Sparkles,
   Compass,
-  Sparkles
+  FolderTree
 } from "lucide-react";
 
-export function AdminNavClient() {
+interface AdminNavClientProps {
+  onItemClick?: () => void;
+}
+
+export function AdminNavClient({ onItemClick }: AdminNavClientProps) {
   const pathname = usePathname();
 
-  const links = [
+  const primaryLinks = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-    { href: "/admin/products", label: "Products", icon: Package },
+    { href: "/admin/orders", label: "Orders & Shipments", icon: ShoppingBag },
+    { href: "/admin/products", label: "Products & Collections", icon: Package },
     { href: "/admin/categories", label: "Categories", icon: FolderTree },
-    { href: "/admin/navigation", label: "Navigation", icon: Compass },
-    { href: "/admin/banners", label: "Banners & Offers", icon: Sparkles },
-    { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
-    { href: "/admin/coupons", label: "Coupons", icon: Tag },
-    { href: "/admin/users", label: "Staff & Users", icon: Users }
+    { href: "/admin/users", label: "Patrons & VIPs", icon: Users },
+    { href: "/admin/banners", label: "Artisan & Banners", icon: Sparkles },
+    { href: "/admin/navigation", label: "Reports & Nav", icon: BarChart3 },
+    { href: "/admin/coupons", label: "Discounts & Offers", icon: Tag }
+  ];
+
+  const secondaryLinks = [
+    { href: "/admin/integrations", label: "Integrations", icon: Puzzle },
+    { href: "/admin/help", label: "Help Center", icon: HelpCircle },
+    { href: "/admin/settings", label: "Settings", icon: Settings }
   ];
 
   return (
-    <ul className="admin-sidebar-menu">
-      {links.map((link) => {
-        const Icon = link.icon;
-        const isActive = link.exact ? pathname === link.href : pathname?.startsWith(link.href);
-        return (
-          <li key={link.href} className={`admin-menu-item ${isActive ? "active" : ""}`}>
-            <Link href={link.href}>
-              <Icon
-                size={15}
-                strokeWidth={isActive ? 2.2 : 1.75}
-                color={isActive ? "#3B4C7A" : "#4B5468"}
-                style={{ flexShrink: 0, transition: "color 0.12s ease" }}
-              />
-              <span>{link.label}</span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+      <ul className="admin-sidebar-menu">
+        {primaryLinks.map((link) => {
+          const Icon = link.icon;
+          const isActive = link.exact ? pathname === link.href : pathname?.startsWith(link.href);
+          return (
+            <li key={link.href} className={`admin-menu-item ${isActive ? "active" : ""}`}>
+              <Link href={link.href} onClick={onItemClick}>
+                <Icon
+                  size={17}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  style={{ flexShrink: 0 }}
+                />
+                <span>{link.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="admin-menu-section-divider">WORKSPACE</div>
+
+      <ul className="admin-sidebar-menu" style={{ paddingTop: 4 }}>
+        {secondaryLinks.map((link, idx) => {
+          const Icon = link.icon;
+          const isActive = pathname === link.href && link.label === "Settings";
+          return (
+            <li key={`${link.href}-${idx}`} className={`admin-menu-item ${isActive ? "active" : ""}`}>
+              <Link href={link.href} onClick={onItemClick}>
+                <Icon
+                  size={17}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  style={{ flexShrink: 0 }}
+                />
+                <span>{link.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

@@ -258,7 +258,11 @@ export default function AccountPage() {
                 Welcome back, {user?.name}
               </h1>
               <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "13px", color: "var(--ink-muted)", flexWrap: "wrap" }}>
-                <span>{user?.email}</span>
+                <span>
+                  {user?.email && !user.email.endsWith("@phone.nilasa.local")
+                    ? user.email
+                    : (user?.phone ? `+91 ${user.phone.replace(/\D/g, "").slice(-10)}` : "Verified Customer")}
+                </span>
                 <span>•</span>
                 <span
                   style={{
@@ -794,7 +798,11 @@ export default function AccountPage() {
                       <Mail size={14} />
                       <span>Email Address</span>
                     </div>
-                    <strong style={{ fontSize: "14px", color: "var(--nilasa-indigo)" }}>{user?.email}</strong>
+                    <strong style={{ fontSize: "14px", color: "var(--nilasa-indigo)" }}>
+                      {user?.email && !user.email.endsWith("@phone.nilasa.local")
+                        ? user.email
+                        : "Not linked (Phone Sign-in)"}
+                    </strong>
                   </div>
 
                   <div style={{ border: "1px solid var(--nilasa-border)", padding: "14px 16px", borderRadius: 8 }}>

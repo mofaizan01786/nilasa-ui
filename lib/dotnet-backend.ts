@@ -5,7 +5,8 @@ import {
   NavigationConfig, NavigationMenuItem, BannersConfig, RegisterCustomerPayload,
   FilterOptions, ProductFilterParams, ShippingAddress, CartItem,
   CreateBackendOrderPayload, BackendShippingAddressDto, PaymentInitiationResult, VerifyPaymentRequest, VerifyPaymentResult,
-  AuthoritativeOrderDetailsDto, SavedAddress, CreateAddressPayload, UpdateAddressPayload
+  AuthoritativeOrderDetailsDto, SavedAddress, CreateAddressPayload, UpdateAddressPayload,
+  AuthMethodsResponse, SendOtpPayload, SendOtpResponse, VerifyOtpPayload, AdminAuthSettings, UpdateAdminAuthSettingsPayload
 } from "./types";
 import { resolveProductImageUrl } from "./catalog";
 
@@ -70,6 +71,25 @@ export async function getAuthHeadersAsync(token?: string): Promise<HeadersInit> 
   return headers;
 }
 
+export function getDeviceId(): string {
+  if (typeof window === "undefined") return "server-device-id";
+  const DEVICE_KEY = "nilasa_device_id";
+  try {
+    let id = window.localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        id = crypto.randomUUID();
+      } else {
+        id = "dev_" + Math.random().toString(36).substring(2, 15) + "_" + Date.now().toString(36);
+      }
+      window.localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  } catch {
+    return "dev_fallback_" + Date.now();
+  }
+}
+
 // ─── Safe Fetch Helper (handles connection errors gracefully) ──
 async function safeFetch(url: string, options?: RequestInit): Promise<Response | null> {
   try {
@@ -79,7 +99,7 @@ async function safeFetch(url: string, options?: RequestInit): Promise<Response |
     clearTimeout(timer);
 
     if (res && res.status === 401 && typeof window !== "undefined") {
-      if (!url.includes("/auth/login") && !url.includes("/auth/register") && !url.includes("/auth/verify-code")) {
+      if (!url.includes("/auth/login") && !url.includes("/auth/register") && !url.includes("/auth/verify-code") && !url.includes("/auth/otp/")) {
         window.dispatchEvent(new CustomEvent("nilasa:auth_unauthorized"));
       }
     }
@@ -1060,6 +1080,156 @@ export async function loginBackend(
     return { success: false, error: err.message || "Unable to connect to authentication service." };
   }
   return { success: false, error: "Authentication service offline." };
+}
+
+// ─── MOBILE OTP & AUTH METHODS API ───────────────────────
+
+export async function fetchAuthMethods(): Promise<AuthMethodsResponse | null> {
+  const isClient = typeof window !== "undefined";
+  const res = await safeFetch(
+    `${getApiBaseUrl()}/auth/methods`,
+    isClient ? { cache: "no-store" } : { next: { revalidate: 60 } }
+  );
+  if (res && res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      // json error
+    }
+  }
+  // Default fallback if backend endpoint is unavailable
+  return {
+    google: false,
+    mobileOtp: true,
+    otp: {
+      length: 6,
+      resendCooldownSeconds: 30,
+      defaultCountryCode: "+91",
+      allowedCountries: ["IN"]
+    }
+  };
+}
+
+export async function sendOtpBackend(
+  phone: string,
+  deviceId?: string
+): Promise<{ success: boolean; resendAfterSeconds?: number; message?: string; error?: string }> {
+  const finalDeviceId = deviceId || getDeviceId();
+  // Strip any leading +91 or formatting spaces/dashes if raw phone is passed
+  const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+
+  try {
+    const res = await safeFetch(`${getApiBaseUrl()}/auth/otp/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: cleanPhone, deviceId: finalDeviceId })
+    });
+
+    if (res) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return {
+          success: true,
+          resendAfterSeconds: data.resendAfterSeconds || 30,
+          message: data.message || "OTP sent successfully."
+        };
+      }
+      if (res.status === 429) {
+        const retrySec = data.retryAfterSeconds || 60;
+        return {
+          success: false,
+          resendAfterSeconds: retrySec,
+          error: `Too many requests. Please wait ${retrySec} seconds before requesting a new OTP.`
+        };
+      }
+      return {
+        success: false,
+        error: data.message || data.detail || data.title || "Failed to send OTP. Please try again."
+      };
+    }
+  } catch (err: any) {
+    return { success: false, error: err.message || "Unable to reach OTP service." };
+  }
+  return { success: false, error: "OTP service offline." };
+}
+
+export async function verifyOtpBackend(
+  phone: string,
+  otp: string,
+  deviceId?: string
+): Promise<{ success: boolean; data?: AuthResponse; error?: string }> {
+  const finalDeviceId = deviceId || getDeviceId();
+  const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+  const cleanOtp = otp.trim();
+
+  try {
+    const res = await safeFetch(`${getApiBaseUrl()}/auth/otp/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: cleanPhone, otp: cleanOtp, deviceId: finalDeviceId })
+    });
+
+    if (res) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return { success: true, data };
+      }
+      if (res.status === 429) {
+        const retrySec = data.retryAfterSeconds || 60;
+        return {
+          success: false,
+          error: `Too many attempts. Please wait ${retrySec} seconds before trying again.`
+        };
+      }
+      return {
+        success: false,
+        error: data.message || data.detail || data.title || "Invalid or expired OTP code."
+      };
+    }
+  } catch (err: any) {
+    return { success: false, error: err.message || "Unable to reach verification service." };
+  }
+  return { success: false, error: "Verification service offline." };
+}
+
+// ─── ADMIN AUTH SETTINGS API ────────────────────────────
+
+export async function fetchAdminAuthSettings(token?: string): Promise<AdminAuthSettings | null> {
+  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const res = await safeFetch(`${getApiBaseUrl()}/admin/settings/auth`, {
+    headers,
+    cache: "no-store"
+  });
+  if (res && res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      // json error
+    }
+  }
+  return {
+    googleEnabled: false,
+    googleEnabledByConfig: false,
+    mobileOtpEnabled: true,
+    mobileOtpEnabledByConfig: true,
+    otpLength: 6,
+    resendCooldownSeconds: 30,
+    defaultCountryCode: "+91",
+    allowedCountries: ["IN"]
+  };
+}
+
+export async function updateAdminAuthSettings(
+  payload: UpdateAdminAuthSettingsPayload,
+  token?: string
+): Promise<boolean> {
+  const headers = getAuthHeaders(token);
+  const res = await safeFetch(`${getApiBaseUrl()}/admin/settings/auth`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(payload)
+  });
+  return !!res && (res.ok || res.status === 200 || res.status === 204);
 }
 
 export async function fetchCurrentUser(token?: string): Promise<User | null> {
