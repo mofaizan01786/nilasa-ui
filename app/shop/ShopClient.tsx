@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useTransition, useCallback } from "react";
+import { useEffect, useState, useTransition, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Product, Category, FilterOptions, ProductFilterParams } from "@/lib/types";
-import { fetchProductsWithFilters, fetchProductFilters } from "@/lib/dotnet-backend";
+import { fetchProductsWithFilters, fetchProductsPaged, fetchProductFilters } from "@/lib/dotnet-backend";
 import { ProductCard } from "@/components/ProductCard";
 import {
   SlidersHorizontal,
@@ -71,6 +71,8 @@ export function ShopClient({
   // Search & Category URL params
   const qParam = searchParams.get("q") || searchParams.get("search") || "";
   const catParam = searchParams.get("category") || searchParams.get("type") || fixedCategory || "";
+  const collectionParam = searchParams.get("collection") || "";
+  const tagParam = searchParams.get("tag") || "";
   const sizeParam = searchParams.get("size") || "all";
   const colorParam = searchParams.get("color") || "all";
   const minPriceParam = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : null;
@@ -81,9 +83,15 @@ export function ShopClient({
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [filters, setFilters] = useState<FilterOptions | null>(initialFilters);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalCount, setTotalCount] = useState<number>(initialProducts.length);
+  const [hasMore, setHasMore] = useState<boolean>(initialProducts.length >= 24);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
   // Active filter selections
   const [selectedCategory, setSelectedCategory] = useState<string>(fixedCategory || catParam || "all");
+  const [selectedCollection, setSelectedCollection] = useState<string>(collectionParam);
+  const [selectedTag, setSelectedTag] = useState<string>(tagParam);
   const [selectedSize, setSelectedSize] = useState<string>(sizeParam);
   const [selectedColor, setSelectedColor] = useState<string>(colorParam);
   const [minPrice, setMinPrice] = useState<number | "">(minPriceParam ?? "");
@@ -93,6 +101,8 @@ export function ShopClient({
   // Modals
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [sortModalOpen, setSortModalOpen] = useState(false);
+
+  const initialMounted = useRef(false);
 
   // Load available filter options if not supplied by SSR
   useEffect(() => {
@@ -108,17 +118,21 @@ export function ShopClient({
   // Sync state from URL search params
   useEffect(() => {
     setSelectedCategory(fixedCategory || catParam || "all");
+    setSelectedCollection(collectionParam);
+    setSelectedTag(tagParam);
     setSelectedSize(sizeParam);
     setSelectedColor(colorParam);
     setMinPrice(minPriceParam ?? "");
     setMaxPrice(maxPriceParam ?? "");
     setSortBy(sortParam);
-  }, [catParam, sizeParam, colorParam, minPriceParam, maxPriceParam, sortParam, fixedCategory]);
+  }, [catParam, collectionParam, tagParam, sizeParam, colorParam, minPriceParam, maxPriceParam, sortParam, fixedCategory]);
 
-  // Master fetch function querying backend filter API
+  // Master fetch function querying backend filter API with page 1
   const applyFilters = useCallback(
     async (params: {
       category?: string;
+      collection?: string;
+      tag?: string;
       size?: string;
       color?: string;
       minP?: number | "";
@@ -128,6 +142,8 @@ export function ShopClient({
     }) => {
       setIsLoading(true);
       const cat = params.category !== undefined ? params.category : selectedCategory;
+      const col = params.collection !== undefined ? params.collection : selectedCollection;
+      const tg = params.tag !== undefined ? params.tag : selectedTag;
       const sz = params.size !== undefined ? params.size : selectedSize;
       const clr = params.color !== undefined ? params.color : selectedColor;
       const minP = params.minP !== undefined ? params.minP : minPrice;
@@ -147,6 +163,8 @@ export function ShopClient({
       const queryParams: ProductFilterParams = {
         search: srch || undefined,
         categoryId: catId,
+        collection: col || undefined,
+        tag: tg || undefined,
         size: sz !== "all" ? sz : undefined,
         color: clr !== "all" ? clr : undefined,
         minPrice: typeof minP === "number" ? minP : undefined,
@@ -155,8 +173,11 @@ export function ShopClient({
       };
 
       try {
-        const result = await fetchProductsWithFilters(queryParams);
-        setProducts(result);
+        const pagedRes = await fetchProductsPaged(queryParams, 1, 24);
+        setProducts(pagedRes.items);
+        setCurrentPage(1);
+        setTotalCount(pagedRes.totalCount ?? pagedRes.items.length);
+        setHasMore(pagedRes.hasMore);
       } catch {
         // keep previous state
       } finally {
@@ -166,7 +187,8 @@ export function ShopClient({
       // Update URL query string without page reload
       const newUrlParams = new URLSearchParams();
       if (srch) newUrlParams.set("q", srch);
-      if (!fixedCategory && cat && cat !== "all") newUrlParams.set("category", cat);
+      if (col) newUrlParams.set("collection", col);
+      if (tg) newUrlParams.set("tag", tg);
       if (sz && sz !== "all") newUrlParams.set("size", sz);
       if (clr && clr !== "all") newUrlParams.set("color", clr);
       if (typeof minP === "number") newUrlParams.set("minPrice", minP.toString());
@@ -174,18 +196,120 @@ export function ShopClient({
       if (srt && srt !== "featured") newUrlParams.set("sortBy", srt);
 
       const qs = newUrlParams.toString();
-      const basePath = fixedCategory ? `/category/${fixedCategory}` : "/shop";
+      const basePath = cat && cat !== "all" ? `/category/${cat}` : "/shop";
       startTransition(() => {
         router.push(`${basePath}${qs ? `?${qs}` : ""}`, { scroll: false });
       });
     },
-    [selectedCategory, selectedSize, selectedColor, minPrice, maxPrice, sortBy, qParam, filters, categories, router, fixedCategory]
+    [selectedCategory, selectedCollection, selectedTag, selectedSize, selectedColor, minPrice, maxPrice, sortBy, qParam, filters, categories, router, fixedCategory]
   );
+
+  // Sync products on initial mount if URL has search/filter params
+  useEffect(() => {
+    const hasInitialFilters =
+      (!fixedCategory && catParam && catParam !== "all") ||
+      collectionParam ||
+      tagParam ||
+      (sizeParam && sizeParam !== "all") ||
+      (colorParam && colorParam !== "all") ||
+      minPriceParam !== null ||
+      maxPriceParam !== null ||
+      (sortParam && sortParam !== "featured") ||
+      qParam;
+
+    if (!initialMounted.current) {
+      initialMounted.current = true;
+      if (hasInitialFilters) {
+        applyFilters({
+          category: fixedCategory || catParam || "all",
+          collection: collectionParam,
+          tag: tagParam,
+          size: sizeParam,
+          color: colorParam,
+          minP: minPriceParam ?? "",
+          maxP: maxPriceParam ?? "",
+          sort: sortParam,
+          search: qParam
+        });
+      }
+    }
+  }, [
+    catParam,
+    collectionParam,
+    tagParam,
+    sizeParam,
+    colorParam,
+    minPriceParam,
+    maxPriceParam,
+    sortParam,
+    qParam,
+    fixedCategory,
+    applyFilters
+  ]);
+
+  // Load next batch of products for large 10,000+ catalogs
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    const nextPage = currentPage + 1;
+
+    let catId: number | undefined = undefined;
+    if (selectedCategory && selectedCategory !== "all") {
+      const found =
+        filters?.categories.find((c) => c.slug.toLowerCase() === selectedCategory.toLowerCase()) ||
+        categories.find((c) => c.slug.toLowerCase() === selectedCategory.toLowerCase() || c.categoryId.toString() === selectedCategory);
+      if (found) catId = found.categoryId;
+    }
+
+    const queryParams: ProductFilterParams = {
+      search: qParam || undefined,
+      categoryId: catId,
+      collection: selectedCollection || undefined,
+      tag: selectedTag || undefined,
+      size: selectedSize !== "all" ? selectedSize : undefined,
+      color: selectedColor !== "all" ? selectedColor : undefined,
+      minPrice: typeof minPrice === "number" ? minPrice : undefined,
+      maxPrice: typeof maxPrice === "number" ? maxPrice : undefined,
+      sortBy: sortBy !== "featured" ? sortBy : undefined
+    };
+
+    try {
+      const pagedRes = await fetchProductsPaged(queryParams, nextPage, 24);
+      if (pagedRes.items.length > 0) {
+        setProducts((prev) => {
+          const seen = new Set(prev.map((p) => p.productId || p.id || p.slug));
+          const fresh = pagedRes.items.filter((p) => !seen.has(p.productId || p.id || p.slug));
+          return [...prev, ...fresh];
+        });
+        setCurrentPage(nextPage);
+        setTotalCount(pagedRes.totalCount ?? (products.length + pagedRes.items.length));
+        setHasMore(pagedRes.hasMore);
+      } else {
+        setHasMore(false);
+      }
+    } catch {
+      // keep state
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // Trigger query when pills or sort change
   const handlePillClick = (catSlug: string) => {
     setSelectedCategory(catSlug);
     applyFilters({ category: catSlug });
+  };
+
+  const handleCollectionClick = (colName: string) => {
+    const nextCol = selectedCollection === colName ? "" : colName;
+    setSelectedCollection(nextCol);
+    applyFilters({ collection: nextCol });
+  };
+
+  const handleTagClick = (tag: string) => {
+    const nextTag = selectedTag === tag ? "" : tag;
+    setSelectedTag(nextTag);
+    applyFilters({ tag: nextTag });
   };
 
   const handleSortChange = (newSort: string) => {
@@ -196,6 +320,8 @@ export function ShopClient({
 
   const handleClearAll = () => {
     setSelectedCategory("all");
+    setSelectedCollection("");
+    setSelectedTag("");
     setSelectedSize("all");
     setSelectedColor("all");
     setMinPrice("");
@@ -204,6 +330,8 @@ export function ShopClient({
     setFilterModalOpen(false);
     applyFilters({
       category: "all",
+      collection: "",
+      tag: "",
       size: "all",
       color: "all",
       minP: "",
@@ -213,15 +341,33 @@ export function ShopClient({
     });
   };
 
-  // Derive categories list (combining backend filter data + categories fallback)
-  const categoryItems = filters?.categories?.length
-    ? filters.categories
-    : categories.map((c) => ({
-        categoryId: c.categoryId,
-        name: c.name,
-        slug: c.slug,
-        productCount: 0
-      }));
+  // Derive deduplicated categories list (combining backend filter data + categories fallback)
+  const categoryItems = useMemo(() => {
+    const source = (filters?.categories && filters.categories.length > 0)
+      ? filters.categories
+      : categories.map((c) => ({
+          categoryId: c.categoryId || (c as any).id || 0,
+          name: c.name,
+          slug: c.slug,
+          productCount: 0
+        }));
+
+    const map = new Map<string, { categoryId: number; name: string; slug: string; productCount: number }>();
+    for (const cat of source) {
+      const key = cat.name.toLowerCase().trim();
+      if (map.has(key)) {
+        const existing = map.get(key)!;
+        existing.productCount = Math.max(existing.productCount, cat.productCount);
+        if (cat.slug === "suits" || cat.slug === "kurtis" || cat.slug === "co-ord-sets") {
+          existing.slug = cat.slug;
+          existing.categoryId = cat.categoryId;
+        }
+      } else {
+        map.set(key, { ...cat });
+      }
+    }
+    return Array.from(map.values());
+  }, [filters, categories]);
 
   const availableSizes = filters?.sizes?.length
     ? filters.sizes
@@ -231,8 +377,12 @@ export function ShopClient({
     ? filters.colors
     : ["Lavender", "Olive", "Gold", "Ivory", "Navy", "Rose", "Emerald"];
 
+  const popularTags = ["Festive", "Silk", "Handloom", "Party", "Zari", "Embroidery", "Summer", "Cotton"];
+
   const activeFiltersCount =
     (!fixedCategory && selectedCategory !== "all" ? 1 : 0) +
+    (selectedCollection ? 1 : 0) +
+    (selectedTag ? 1 : 0) +
     (selectedSize !== "all" ? 1 : 0) +
     (selectedColor !== "all" ? 1 : 0) +
     (typeof minPrice === "number" || typeof maxPrice === "number" ? 1 : 0);
@@ -247,6 +397,14 @@ export function ShopClient({
               {categoryTitle ||
                 (qParam
                   ? `Results for "${qParam}"`
+                  : selectedCollection === "bestsellers"
+                  ? "Best Sellers"
+                  : selectedCollection === "new"
+                  ? "New Arrivals"
+                  : selectedCollection === "featured"
+                  ? "Featured Creations"
+                  : selectedTag
+                  ? `${selectedTag} Edit`
                   : selectedCategory !== "all"
                   ? categoryItems.find((c) => c.slug === selectedCategory)?.name || "All Collections"
                   : "All Collections")}
@@ -263,7 +421,43 @@ export function ShopClient({
         </div>
       </section>
 
-      {/* ── 2. Dynamic Category Filter Pills Row (Only on general /shop page, never on specific category pages) ── */}
+      {/* ── 2. Curated Collection Tabs Row ── */}
+      {!fixedCategory && (
+        <div style={{ padding: "0 16px 8px", display: "flex", gap: "8px", overflowX: "auto", scrollbarWidth: "none" }}>
+          {[
+            { id: "", label: "All Garments" },
+            { id: "bestsellers", label: "🔥 Best Sellers" },
+            { id: "new", label: "✨ New Arrivals" },
+            { id: "featured", label: "🌟 Featured" }
+          ].map((col) => {
+            const isSelected = selectedCollection === col.id;
+            return (
+              <button
+                key={col.id}
+                type="button"
+                onClick={() => handleCollectionClick(col.id)}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: isSelected ? 700 : 500,
+                  whiteSpace: "nowrap",
+                  cursor: "pointer",
+                  border: isSelected ? "1px solid var(--nilasa-indigo)" : "1px solid rgba(198, 146, 68, 0.25)",
+                  backgroundColor: isSelected ? "var(--nilasa-indigo)" : "#FFFFFF",
+                  color: isSelected ? "#FFFFFF" : "var(--ink-primary)",
+                  boxShadow: isSelected ? "0 2px 8px rgba(32, 43, 69, 0.15)" : "none",
+                  transition: "all 0.18s ease"
+                }}
+              >
+                {col.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── 3. Dynamic Category Filter Pills Row ── */}
       {!fixedCategory && categoryItems.length > 0 && (
         <nav className="shop-pills-row" aria-label="Category Filters">
           <div className="shop-pills-scroll">
@@ -272,7 +466,7 @@ export function ShopClient({
               onClick={() => handlePillClick("all")}
               className={`shop-pill-chip ${selectedCategory === "all" ? "active" : ""}`}
             >
-              <span>All</span>
+              <span>All Categories</span>
             </button>
             {categoryItems.map((cat) => {
               const isActive = selectedCategory.toLowerCase() === cat.slug.toLowerCase();
@@ -296,7 +490,7 @@ export function ShopClient({
         </nav>
       )}
 
-      {/* ── 3. Product Count & Filter / Sort Action Bar ── */}
+      {/* ── 4. Product Count & Filter / Sort Action Bar ── */}
       <section className="shop-controls-bar">
         <div className="shop-product-count">
           {isLoading || isPending ? (
@@ -363,6 +557,60 @@ export function ShopClient({
           <span style={{ fontSize: "0.72rem", color: "#64748B", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.06em", marginRight: 4 }}>
             Active:
           </span>
+
+          {selectedCollection && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCollection("");
+                applyFilters({ collection: "" });
+              }}
+              className="active-filter-tag"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "#FAF8FD",
+                border: "1px solid #E4D9F0",
+                color: "#7C5999",
+                borderRadius: 999,
+                padding: "3px 10px",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              Collection: {selectedCollection === "bestsellers" ? "Best Sellers" : selectedCollection === "new" ? "New Arrivals" : selectedCollection}
+              <X size={12} />
+            </button>
+          )}
+
+          {selectedTag && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTag("");
+                applyFilters({ tag: "" });
+              }}
+              className="active-filter-tag"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "#FAF8FD",
+                border: "1px solid #E4D9F0",
+                color: "#7C5999",
+                borderRadius: 999,
+                padding: "3px 10px",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              Tag: {selectedTag}
+              <X size={12} />
+            </button>
+          )}
 
           {!fixedCategory && selectedCategory !== "all" && (
             <button
@@ -495,11 +743,54 @@ export function ShopClient({
       {/* ── 4. Responsive Product Grid ── */}
       <section className="shop-grid-section">
         {products.length > 0 ? (
-          <div className="mobile-product-grid">
-            {products.map((product) => (
-              <ProductCard key={product.id || product.productId || product.slug} product={product} />
-            ))}
-          </div>
+          <>
+            <div className="mobile-product-grid">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id || product.productId || product.slug}
+                  product={product}
+                  activeColor={selectedColor}
+                  activeSize={selectedSize}
+                />
+              ))}
+            </div>
+
+            {/* Pagination & Load More Controls */}
+            <div style={{ textAlign: "center", marginTop: "40px", marginBottom: "20px" }}>
+              <p style={{ fontSize: "0.85rem", color: "var(--ink-muted)", marginBottom: "12px" }}>
+                Showing {products.length} of {totalCount || products.length} designs
+              </p>
+              {hasMore ? (
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="tabbed-showcase-cta"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    cursor: isLoadingMore ? "not-allowed" : "pointer",
+                    opacity: isLoadingMore ? 0.7 : 1
+                  }}
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <Loader2 size={16} className="spin" style={{ animation: "spin 1s linear infinite" }} />
+                      <span>Loading More Creations...</span>
+                    </>
+                  ) : (
+                    <span>Load More Products</span>
+                  )}
+                </button>
+              ) : products.length > 24 ? (
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--ink-muted)", fontSize: "0.85rem" }}>
+                  <Check size={16} color="var(--nilasa-gold, #D4B258)" />
+                  <span>You have reached the end of the collection.</span>
+                </div>
+              ) : null}
+            </div>
+          </>
         ) : (
           <div className="shop-empty-state" style={{ textAlign: "center", padding: "60px 20px", background: "#FFFFFF", borderRadius: 16, border: "1px dashed #E0D7C9" }}>
             <span style={{ fontSize: "2.8rem", display: "block", marginBottom: 12 }}>🌿</span>
@@ -538,34 +829,32 @@ export function ShopClient({
             </div>
 
             <div className="mobile-drawer-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Category Filter (Only on general /shop page) */}
-              {!fixedCategory && (
-                <div className="drawer-filter-group">
-                  <span className="drawer-filter-title">Category</span>
-                  <div className="drawer-chips-grid">
+              {/* Category Filter */}
+              <div className="drawer-filter-group">
+                <span className="drawer-filter-title">Category</span>
+                <div className="drawer-chips-grid">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory("all")}
+                    className={`drawer-chip ${selectedCategory === "all" ? "selected" : ""}`}
+                  >
+                    <span>All Categories</span>
+                    {selectedCategory === "all" && <Check size={13} />}
+                  </button>
+                  {categoryItems.map((cat) => (
                     <button
+                      key={cat.categoryId || cat.slug}
                       type="button"
-                      onClick={() => setSelectedCategory("all")}
-                      className={`drawer-chip ${selectedCategory === "all" ? "selected" : ""}`}
+                      onClick={() => setSelectedCategory(cat.slug)}
+                      className={`drawer-chip ${selectedCategory.toLowerCase() === cat.slug.toLowerCase() ? "selected" : ""}`}
                     >
-                      <span>All Categories</span>
-                      {selectedCategory === "all" && <Check size={13} />}
+                      <span>{cat.name}</span>
+                      {cat.productCount > 0 && <span style={{ opacity: 0.7, fontSize: "0.72rem" }}>({cat.productCount})</span>}
+                      {selectedCategory.toLowerCase() === cat.slug.toLowerCase() && <Check size={13} />}
                     </button>
-                    {categoryItems.map((cat) => (
-                      <button
-                        key={cat.categoryId || cat.slug}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat.slug)}
-                        className={`drawer-chip ${selectedCategory.toLowerCase() === cat.slug.toLowerCase() ? "selected" : ""}`}
-                      >
-                        <span>{cat.name}</span>
-                        {cat.productCount > 0 && <span style={{ opacity: 0.7, fontSize: "0.72rem" }}>({cat.productCount})</span>}
-                        {selectedCategory.toLowerCase() === cat.slug.toLowerCase() && <Check size={13} />}
-                      </button>
-                    ))}
-                  </div>
+                  ))}
                 </div>
-              )}
+              </div>
 
               {/* Size Filter (Backend API) */}
               <div className="drawer-filter-group">
@@ -625,6 +914,55 @@ export function ShopClient({
                       />
                       <span>{clr}</span>
                       {selectedColor === clr && <Check size={13} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Curated Collection Filter (Backend API) */}
+              <div className="drawer-filter-group">
+                <span className="drawer-filter-title">Curated Collection</span>
+                <div className="drawer-chips-grid">
+                  {[
+                    { id: "", label: "All Garments" },
+                    { id: "bestsellers", label: "🔥 Best Sellers" },
+                    { id: "new", label: "✨ New Arrivals" },
+                    { id: "featured", label: "🌟 Featured Creations" }
+                  ].map((col) => (
+                    <button
+                      key={col.id}
+                      type="button"
+                      onClick={() => setSelectedCollection(col.id)}
+                      className={`drawer-chip ${selectedCollection === col.id ? "selected" : ""}`}
+                    >
+                      <span>{col.label}</span>
+                      {selectedCollection === col.id && <Check size={13} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tag / Fabric / Theme Filter (Backend API) */}
+              <div className="drawer-filter-group">
+                <span className="drawer-filter-title">Popular Tags & Edits</span>
+                <div className="drawer-chips-grid">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTag("")}
+                    className={`drawer-chip ${!selectedTag ? "selected" : ""}`}
+                  >
+                    <span>All Tags</span>
+                    {!selectedTag && <Check size={13} />}
+                  </button>
+                  {popularTags.map((tg) => (
+                    <button
+                      key={tg}
+                      type="button"
+                      onClick={() => setSelectedTag(tg)}
+                      className={`drawer-chip ${selectedTag.toLowerCase() === tg.toLowerCase() ? "selected" : ""}`}
+                    >
+                      <span>{tg}</span>
+                      {selectedTag.toLowerCase() === tg.toLowerCase() && <Check size={13} />}
                     </button>
                   ))}
                 </div>

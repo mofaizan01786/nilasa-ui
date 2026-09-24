@@ -4,10 +4,56 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToBag } from "@/components/AddToBag";
 import { ProductGallery } from "@/components/ProductGallery";
-import { fetchPublishedProducts, fetchProductBySlug } from "@/lib/dotnet-backend";
+import { fetchPublishedProducts, fetchProductBySlug, fetchProductsPaged } from "@/lib/dotnet-backend";
 import { formatPrice, getProductImage } from "@/lib/catalog";
+import { ProductReviewsSection } from "@/components/ProductReviewsSection";
+import { Star } from "lucide-react";
+import { Product } from "@/lib/types";
 
 export const revalidate = 3600; // ISR cache strategy
+
+async function resolveProduct(slug: string): Promise<Product | null> {
+  // 1. Direct slug lookup
+  let product = await fetchProductBySlug(slug);
+  if (product) return product;
+
+  // 2. Lookup by keyword search from slug
+  try {
+    const cleanSearch = slug.replace(/-[0-9]+$/, "").replace(/-/g, " ");
+    const searchRes = await fetchProductsPaged({ search: cleanSearch }, 1, 15);
+    if (searchRes?.items?.length) {
+      const match =
+        searchRes.items.find(
+          (p) =>
+            p.slug.toLowerCase() === slug.toLowerCase() ||
+            p.slug.toLowerCase().startsWith(slug.toLowerCase()) ||
+            slug.toLowerCase().startsWith(p.slug.toLowerCase()) ||
+            p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") === slug.toLowerCase()
+        ) || searchRes.items[0];
+      if (match) return match;
+    }
+  } catch {
+    // fallback
+  }
+
+  // 3. Fallback scan across catalog
+  try {
+    const all = await fetchPublishedProducts({ pageSize: 100 });
+    const match =
+      all.find(
+        (p) =>
+          p.slug.toLowerCase() === slug.toLowerCase() ||
+          p.slug.toLowerCase().startsWith(slug.toLowerCase()) ||
+          slug.toLowerCase().startsWith(p.slug.toLowerCase()) ||
+          p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") === slug.toLowerCase()
+      ) || null;
+    if (match) return match;
+  } catch {
+    // fallback
+  }
+
+  return null;
+}
 
 export async function generateStaticParams() {
   const products = await fetchPublishedProducts();
@@ -24,11 +70,7 @@ export async function generateMetadata({
     const slug = resolvedParams?.slug;
     if (!slug) return {};
 
-    let product = await fetchProductBySlug(slug);
-    if (!product) {
-      const all = await fetchPublishedProducts();
-      product = all.find((p) => p.slug === slug || encodeURIComponent(p.slug) === slug) || null;
-    }
+    const product = await resolveProduct(slug);
     if (!product) return {};
 
     const url = `https://nilasawear.com/product/${product.slug}`;
@@ -59,11 +101,7 @@ export default async function ProductPage({
   const slug = resolvedParams?.slug;
   if (!slug) notFound();
 
-  let product = await fetchProductBySlug(slug);
-  if (!product) {
-    const all = await fetchPublishedProducts();
-    product = all.find((p) => p.slug === slug || encodeURIComponent(p.slug) === slug) || null;
-  }
+  const product = await resolveProduct(slug);
   if (!product) notFound();
 
   const mainImage = getProductImage(product);
@@ -112,6 +150,38 @@ export default async function ProductPage({
             {product.name}
           </h1>
 
+          {/* Customer Reviews summary badge & anchor */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 12px" }}>
+            <Link
+              href="#reviews"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                textDecoration: "none",
+                fontSize: "13px",
+                color: "var(--ink-muted)"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    size={14}
+                    fill={Number(product.averageRating || 5) >= s ? "#D97706" : "#E5E7EB"}
+                    color={Number(product.averageRating || 5) >= s ? "#D97706" : "#E5E7EB"}
+                  />
+                ))}
+              </div>
+              <span style={{ fontWeight: 600, color: "var(--ink-primary)" }}>
+                {product.averageRating ? Number(product.averageRating).toFixed(1) : "5.0"}
+              </span>
+              <span style={{ color: "var(--nilasa-gold)", textDecoration: "underline" }}>
+                ({product.reviewCount || 0} reviews)
+              </span>
+            </Link>
+          </div>
+
           <p className="product-detail-price">
             {formatPrice(product.basePrice)}
           </p>
@@ -127,6 +197,13 @@ export default async function ProductPage({
           <AddToBag product={product} />
         </section>
       </div>
+
+      {/* ── Verified Customer Ratings & Reviews Section ── */}
+      <ProductReviewsSection
+        productId={product.productId || (typeof product.id === "number" ? product.id : 1)}
+        productName={product.name}
+        productSlug={product.slug}
+      />
     </main>
   );
 }

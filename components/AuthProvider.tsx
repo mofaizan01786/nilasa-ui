@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { User, AuthResponse, RegisterCustomerPayload } from "@/lib/types";
 import {
   loginBackend,
+  loginWithGoogleBackend,
   registerBackend,
   sendVerificationCodeBackend,
   verifyCodeBackend,
@@ -19,6 +20,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (payload: { credential?: string; idToken?: string; email?: string; name?: string }) => Promise<{ success: boolean; error?: string }>;
   sendOtp: (phone: string) => Promise<{ success: boolean; resendAfterSeconds?: number; message?: string; error?: string }>;
   loginWithOtp: (phone: string, otp: string) => Promise<{ success: boolean; error?: string }>;
   register: (payload: RegisterCustomerPayload) => Promise<{ success: boolean; error?: string }>;
@@ -160,6 +162,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginWithGoogle = async (payload: { credential?: string; idToken?: string; email?: string; name?: string }) => {
+    try {
+      const res = await loginWithGoogleBackend(payload);
+      if (res.success && res.data && res.data.accessToken) {
+        saveAuthSession(res.data);
+        return { success: true };
+      }
+      return { success: false, error: res.error || "Google sign-in failed. Please try again." };
+    } catch (err: any) {
+      return { success: false, error: err.message || "Unable to connect to Google authentication service." };
+    }
+  };
+
   const sendOtp = async (phone: string) => {
     try {
       const res = await sendOtpBackend(phone);
@@ -222,6 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user && !!token,
         isLoading,
         login,
+        loginWithGoogle,
         sendOtp,
         loginWithOtp,
         register,

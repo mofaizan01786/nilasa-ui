@@ -10,7 +10,7 @@ import { ProductStatusToggle } from "./ProductStatusToggle";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { AdminToast } from "./AdminToast";
 import { AdminTablePagination } from "./AdminTablePagination";
-import { deleteProduct, fetchProductsAdminPaged } from "@/lib/dotnet-backend";
+import { deleteProduct, fetchProductsAdminPaged, fetchAllProductsAdmin } from "@/lib/dotnet-backend";
 import {
   Plus,
   Pencil,
@@ -40,9 +40,6 @@ export function AdminProductsClient({
   const [productList, setProductList] = useState<Product[]>(initialProducts || products || []);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
-  const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
-  const [totalPages, setTotalPages] = useState<number | undefined>(undefined);
-  const [hasMore, setHasMore] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
 
   // Drawers & Modals
@@ -62,10 +59,20 @@ export function AdminProductsClient({
   // Feedback Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Deduplicate categories for clean filter dropdown
+  const deduplicatedCategories = useMemo(() => {
+    const map = new Map<string, Category>();
+    for (const c of categories) {
+      const key = c.name.toLowerCase().trim();
+      if (!map.has(key)) {
+        map.set(key, c);
+      }
+    }
+    return Array.from(map.values());
+  }, [categories]);
 
-  // Fetch Paged Products from Backend API
-  const loadPagedProducts = useCallback(async (page: number, size: number, status: string, query: string) => {
+  // Fetch all inventory products for unified authoritative filtering
+  const loadAllProducts = useCallback(async () => {
     setLoading(true);
     try {
       const token =
@@ -73,23 +80,9 @@ export function AdminProductsClient({
           ? window.localStorage.getItem("nilasa-auth-token") || undefined
           : undefined;
 
-      const result = await fetchProductsAdminPaged(
-        page,
-        size,
-        status === "ALL" ? undefined : status,
-        query || undefined,
-        token
-      );
-
-      if (result && Array.isArray(result.items)) {
-        setProductList(result.items);
-        setHasMore(result.hasMore);
-        if (result.totalCount !== undefined) {
-          setTotalCount(result.totalCount);
-        }
-        if (result.totalPages !== undefined) {
-          setTotalPages(result.totalPages);
-        }
+      const data = await fetchAllProductsAdmin(undefined, token);
+      if (Array.isArray(data) && data.length > 0) {
+        setProductList(data);
       }
     } catch (err) {
       console.error("[AdminProducts] Failed to load products:", err);
@@ -98,23 +91,82 @@ export function AdminProductsClient({
     }
   }, []);
 
-  // Trigger load when page, pageSize, status, or search changes
   useEffect(() => {
-    loadPagedProducts(currentPage, pageSize, statusFilter, searchQuery);
-  }, [currentPage, pageSize, statusFilter, loadPagedProducts]);
+    if (!initialProducts || initialProducts.length === 0) {
+      loadAllProducts();
+    }
+  }, [initialProducts, loadAllProducts]);
 
-  // Debounced search handler (resets page to 1)
+  // Search, Status, Category, and Sort Filter across complete catalog
+  const filteredProducts = useMemo(() => {
+    let list = [...productList];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.slug.toLowerCase().includes(q) ||
+          (p.categoryName || "").toLowerCase().includes(q) ||
+          (p.tags || "").toLowerCase().includes(q) ||
+          String(p.productId || p.id).includes(q)
+      );
+    }
+
+    if (statusFilter && statusFilter !== "ALL") {
+      list = list.filter((p) => (p.status || "Published").toLowerCase() === statusFilter.toLowerCase());
+    }
+
+    if (categoryFilter && categoryFilter !== "ALL") {
+      const catId = parseInt(categoryFilter, 10);
+      const targetCat = deduplicatedCategories.find((c) => (c.categoryId || c.id) === catId);
+      list = list.filter((p) => {
+        if (p.categoryId === catId) return true;
+        if (targetCat && (p.categoryName || "").toLowerCase().trim() === targetCat.name.toLowerCase().trim()) return true;
+        return false;
+      });
+    }
+
+    list.sort((a, b) => {
+      if (sortBy === "name") {
+        return sortOrder === "asc"
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
+      }
+      if (sortBy === "price") {
+        return sortOrder === "asc"
+          ? (a.basePrice || 0) - (b.basePrice || 0)
+          : (b.basePrice || 0) - (a.basePrice || 0);
+      }
+      const idA = a.productId || a.id || 0;
+      const idB = b.productId || b.id || 0;
+      return sortOrder === "asc" ? idA - idB : idB - idA;
+    });
+
+    return list;
+  }, [productList, searchQuery, statusFilter, categoryFilter, sortBy, sortOrder, deduplicatedCategories]);
+
+  const totalFilteredCount = filteredProducts.length;
+  const calculatedTotalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
+
+  // Current page sliced items
+  const displayedProducts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, currentPage, pageSize]);
+
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => {
-      setCurrentPage(1);
-      loadPagedProducts(1, pageSize, statusFilter, val);
-    }, 350);
+    setCurrentPage(1);
   };
 
   const handleStatusFilterChange = (val: string) => {
     setStatusFilter(val);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryFilterChange = (val: string) => {
+    setCategoryFilter(val);
     setCurrentPage(1);
   };
 
@@ -124,7 +176,7 @@ export function AdminProductsClient({
   };
 
   const handlePageChange = (newPage: number) => {
-    if (newPage < 1) return;
+    if (newPage < 1 || newPage > calculatedTotalPages) return;
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -154,7 +206,7 @@ export function AdminProductsClient({
       if (success) {
         setDeleteModalOpen(false);
         setToastMessage(`Archived "${productToDelete.name}"`);
-        loadPagedProducts(currentPage, pageSize, statusFilter, searchQuery);
+        loadAllProducts();
         router.refresh();
       }
     } catch {
@@ -166,37 +218,9 @@ export function AdminProductsClient({
 
   const handleReload = (msg?: string) => {
     if (msg) setToastMessage(msg);
-    loadPagedProducts(currentPage, pageSize, statusFilter, searchQuery);
+    loadAllProducts();
     router.refresh();
   };
-
-  // Local Category Filter & Sorting
-  const displayedProducts = useMemo(() => {
-    let list = [...productList];
-
-    if (categoryFilter && categoryFilter !== "ALL") {
-      const catId = parseInt(categoryFilter, 10);
-      list = list.filter((p) => p.categoryId === catId);
-    }
-
-    list.sort((a, b) => {
-      if (sortBy === "name") {
-        return sortOrder === "asc"
-          ? a.name.localeCompare(b.name)
-          : b.name.localeCompare(a.name);
-      }
-      if (sortBy === "price") {
-        return sortOrder === "asc"
-          ? (a.basePrice || 0) - (b.basePrice || 0)
-          : (b.basePrice || 0) - (a.basePrice || 0);
-      }
-      const idA = a.productId || a.id || 0;
-      const idB = b.productId || b.id || 0;
-      return sortOrder === "asc" ? idA - idB : idB - idA;
-    });
-
-    return list;
-  }, [productList, categoryFilter, sortBy, sortOrder]);
 
   const toggleSort = (field: "name" | "price" | "id") => {
     if (sortBy === field) {
@@ -207,8 +231,8 @@ export function AdminProductsClient({
     }
   };
 
-  const startCount = productList.length > 0 ? (currentPage - 1) * pageSize + 1 : 0;
-  const endCount = (currentPage - 1) * pageSize + productList.length;
+  const startCount = totalFilteredCount > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const endCount = Math.min(currentPage * pageSize, totalFilteredCount);
 
   return (
     <div className="admin-page-root">
@@ -220,16 +244,16 @@ export function AdminProductsClient({
       <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title">
-            Products {totalCount !== undefined ? `(${totalCount})` : `(Page ${currentPage})`}
+            Products ({totalFilteredCount})
           </h1>
           <p className="admin-page-subtitle">
-            Showing {startCount} – {endCount} {totalCount ? `of ${totalCount}` : ""} catalog SKUs across collections
+            Showing {startCount} – {endCount} of {totalFilteredCount} catalog SKUs {categoryFilter !== "ALL" ? "in selected category" : "across collections"}
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
           <button
             type="button"
-            onClick={() => loadPagedProducts(currentPage, pageSize, statusFilter, searchQuery)}
+            onClick={() => loadAllProducts()}
             disabled={loading}
             className="admin-btn-secondary"
             title="Refresh Inventory"
@@ -284,12 +308,12 @@ export function AdminProductsClient({
           {/* Category Filter */}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => handleCategoryFilterChange(e.target.value)}
             className="admin-select-filter"
           >
             <option value="ALL">All Categories</option>
-            {categories.map((c) => (
-              <option key={c.categoryId || c.id} value={c.categoryId || c.id}>
+            {deduplicatedCategories.map((c) => (
+              <option key={c.categoryId || (c as any).id} value={c.categoryId || (c as any).id}>
                 {c.name}
               </option>
             ))}
@@ -298,10 +322,10 @@ export function AdminProductsClient({
 
         <div style={{ fontSize: "12.5px", color: "var(--admin-slate-600)" }}>
           {loading ? (
-            <span>Loading page {currentPage}...</span>
+            <span>Loading catalog...</span>
           ) : (
             <span>
-              Page <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong> • Showing {displayedProducts.length} items
+              Page <strong>{currentPage}</strong> of <strong>{calculatedTotalPages}</strong> • Showing {displayedProducts.length} items
             </span>
           )}
         </div>
@@ -381,8 +405,25 @@ export function AdminProductsClient({
                       </div>
                     </td>
                     <td>
-                      <strong style={{ display: "block", color: "var(--admin-ink)" }}>{product.name}</strong>
-                      <span style={{ fontSize: "11px", color: "var(--admin-slate-600)", fontFamily: "var(--font-mono)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <strong style={{ color: "var(--admin-ink)" }}>{product.name}</strong>
+                        {product.isBestseller && (
+                          <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: 4, backgroundColor: "rgba(184, 145, 46, 0.12)", color: "#B8912E" }}>
+                            🔥 Bestseller
+                          </span>
+                        )}
+                        {product.isNewArrival && (
+                          <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: 4, backgroundColor: "rgba(4, 120, 87, 0.12)", color: "#047857" }}>
+                            ✨ New
+                          </span>
+                        )}
+                        {product.isFeatured && (
+                          <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: 4, backgroundColor: "rgba(124, 89, 153, 0.12)", color: "#7C5999" }}>
+                            🌟 Featured
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: "11px", color: "var(--admin-slate-600)", fontFamily: "var(--font-mono)", display: "block" }}>
                         /product/{product.slug}
                       </span>
                     </td>
@@ -434,10 +475,10 @@ export function AdminProductsClient({
         <AdminTablePagination
           currentPage={currentPage}
           pageSize={pageSize}
-          totalItems={totalCount}
-          totalPages={totalPages}
-          currentCount={productList.length}
-          hasMore={hasMore}
+          totalItems={totalFilteredCount}
+          totalPages={calculatedTotalPages}
+          currentCount={displayedProducts.length}
+          hasMore={currentPage < calculatedTotalPages}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
           pageSizeOptions={[20, 50, 100]}
@@ -451,7 +492,7 @@ export function AdminProductsClient({
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         product={editingProduct}
-        categories={categories}
+        categories={deduplicatedCategories}
         onSaved={handleReload}
       />
 

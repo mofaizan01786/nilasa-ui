@@ -35,32 +35,34 @@ export function SearchBar({ allProducts }: { allProducts?: Product[] }) {
     setMounted(true);
   }, []);
 
-  // Load catalog products
-  useEffect(() => {
-    if (allProducts && allProducts.length > 0) {
-      setCatalog(allProducts);
-    } else {
-      fetchPublishedProducts()
-        .then((data) => {
-          if (Array.isArray(data) && data.length > 0) {
-            setCatalog(data);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [allProducts]);
-
-  // Live query filtering
+  // Live query filtering (Debounced backend query with client fallback)
   useEffect(() => {
     const trimmed = query.trim();
-    if (trimmed.length > 0) {
+    if (!trimmed) {
+      setResults([]);
+      setIsOpen(false);
+      return;
+    }
+
+    // Fast local filter if catalog is already present and small
+    if (catalog.length > 0 && catalog.length <= 100) {
       const matched = searchProducts(catalog, trimmed);
       setResults(matched);
       setIsOpen(true);
-    } else {
-      setResults([]);
-      setIsOpen(false);
+      return;
     }
+
+    // Live debounced server query for large 10,000+ catalogs
+    const timer = setTimeout(() => {
+      fetchPublishedProducts({ search: trimmed, pageSize: 8 })
+        .then((items) => {
+          setResults(items);
+          setIsOpen(true);
+        })
+        .catch(() => {});
+    }, 220);
+
+    return () => clearTimeout(timer);
   }, [query, catalog]);
 
   // Keyboard shortcut listener (Cmd/Ctrl + K or Escape to close)

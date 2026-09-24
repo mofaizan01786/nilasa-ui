@@ -7,7 +7,7 @@ import {
   CreateBackendOrderPayload, BackendShippingAddressDto, PaymentInitiationResult, VerifyPaymentRequest, VerifyPaymentResult,
   AuthoritativeOrderDetailsDto, SavedAddress, CreateAddressPayload, UpdateAddressPayload,
   AuthMethodsResponse, SendOtpPayload, SendOtpResponse, VerifyOtpPayload, AdminAuthSettings, UpdateAdminAuthSettingsPayload,
-  PagedAdminResult
+  PagedAdminResult, ProductReviewDto, ProductReviewSummaryDto, PaginatedReviewResponseDto, ReviewEligibilityDto
 } from "./types";
 import { resolveProductImageUrl } from "./catalog";
 
@@ -132,13 +132,46 @@ function normaliseProduct(p: Product): Product {
     imageUrl: v.imageUrl ? resolveProductImageUrl(v.imageUrl) : undefined
   }));
 
+  // Determine automatic badge from backend merchandising attributes
+  let badge = p.badge;
+  let badgeType: "gold" | "lavender" | "emerald" | undefined = p.badgeType;
+
+  if (!badge) {
+    if (p.isBestseller) {
+      badge = "Bestseller";
+      badgeType = "gold";
+    } else if (p.isNewArrival) {
+      badge = "New Arrival";
+      badgeType = "emerald";
+    } else if (p.isFeatured) {
+      badge = "Featured";
+      badgeType = "lavender";
+    } else if (p.discountPercent && p.discountPercent > 0) {
+      badge = `${Math.round(p.discountPercent)}% OFF`;
+      badgeType = "gold";
+    }
+  }
+
   return {
     ...p,
     id: p.productId ?? p.id,
     imageUrl: mainImage || undefined,
     images: images,
     variants: variants,
-    status: p.status ?? "Published"
+    status: p.status ?? "Published",
+    isFeatured: !!p.isFeatured,
+    isBestseller: !!p.isBestseller,
+    isNewArrival: !!p.isNewArrival,
+    isActive: p.isActive !== undefined ? p.isActive : true,
+    tags: p.tags,
+    mrp: p.mrp,
+    discountPercent: p.discountPercent,
+    brand: p.brand,
+    averageRating: p.averageRating,
+    reviewCount: p.reviewCount,
+    stockQuantity: p.stockQuantity,
+    badge,
+    badgeType
   };
 }
 
@@ -183,7 +216,52 @@ export async function fetchProductFilters(): Promise<FilterOptions | null> {
   );
   if (res && res.ok) {
     try {
-      return await res.json();
+      const data: FilterOptions = await res.json();
+      if (data) {
+        if (Array.isArray(data.categories)) {
+          const map = new Map<string, { categoryId: number; name: string; slug: string; productCount: number }>();
+          for (const cat of data.categories) {
+            const key = cat.name.toLowerCase().trim();
+            if (map.has(key)) {
+              const existing = map.get(key)!;
+              existing.productCount = Math.max(existing.productCount, cat.productCount);
+              if (cat.slug === "suits" || cat.slug === "kurtis" || cat.slug === "co-ord-sets") {
+                existing.slug = cat.slug;
+                existing.categoryId = cat.categoryId;
+              }
+            } else {
+              map.set(key, { ...cat });
+            }
+          }
+          data.categories = Array.from(map.values());
+        }
+
+        if (Array.isArray(data.colors)) {
+          const colorMap = new Map<string, string>();
+          for (const c of data.colors) {
+            if (c && typeof c === "string" && c.trim()) {
+              const trimmed = c.trim();
+              const key = trimmed.toLowerCase();
+              if (!colorMap.has(key)) {
+                const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+                colorMap.set(key, formatted);
+              }
+            }
+          }
+          data.colors = Array.from(colorMap.values());
+        }
+
+        if (Array.isArray(data.sizes)) {
+          const sizeSet = new Set<string>();
+          for (const s of data.sizes) {
+            if (s && typeof s === "string" && s.trim()) {
+              sizeSet.add(s.trim().toUpperCase());
+            }
+          }
+          data.sizes = Array.from(sizeSet);
+        }
+      }
+      return data;
     } catch {
       // json parse error
     }
@@ -191,18 +269,121 @@ export async function fetchProductFilters(): Promise<FilterOptions | null> {
   return null;
 }
 
+export async function fetchProductsPaged(
+  params: ProductFilterParams = {},
+  page = 1,
+  pageSize = 24
+): Promise<PagedAdminResult<Product>> {
+  const isClient = typeof window !== "undefined";
+  const searchParams = new URLSearchParams();
+  if (params.categoryId) searchParams.set("categoryId", params.categoryId.toString());
+  if (params.search && params.search.trim()) searchParams.set("search", params.search.trim());
+  if (params.collection && params.collection.trim()) {
+    const col = params.collection.trim().toLowerCase();
+    if (col === "bestsellers" || col === "new" || col === "featured") {
+      searchParams.set("collection", col);
+    }
+  }
+  if (params.tag && params.tag.trim()) searchParams.set("tag", params.tag.trim());
+  if (params.brand && params.brand.trim()) searchParams.set("brand", params.brand.trim());
+  if (params.minRating !== undefined && params.minRating !== null) searchParams.set("minRating", params.minRating.toString());
+  if (params.inStock !== undefined && params.inStock !== null) searchParams.set("inStock", params.inStock.toString());
+
+  const effectivePage = params.page || page;
+  const effectivePageSize = params.pageSize || pageSize;
+  searchParams.set("page", effectivePage.toString());
+  searchParams.set("pageSize", effectivePageSize.toString());
+
+  if (params.size && params.size !== "all") searchParams.set("size", params.size);
+  if (params.color && params.color !== "all") searchParams.set("color", params.color);
+  if (params.minPrice !== undefined && params.minPrice !== null) searchParams.set("minPrice", params.minPrice.toString());
+  if (params.maxPrice !== undefined && params.maxPrice !== null) searchParams.set("maxPrice", params.maxPrice.toString());
+
+  const effectiveSort = params.sort || params.sortBy;
+  if (effectiveSort && effectiveSort !== "featured") {
+    searchParams.set("sortBy", effectiveSort);
+  }
+
+  const queryString = searchParams.toString();
+  const url = `${getApiBaseUrl()}/products${queryString ? `?${queryString}` : ""}`;
+  const res = await safeFetch(url, isClient ? { cache: "no-store" } : { next: { revalidate: 0 } });
+  if (res && res.ok) {
+    try {
+      const headerTotal = res.headers.get("x-total-count") || res.headers.get("X-Total-Count");
+      const headerPages = res.headers.get("x-total-pages") || res.headers.get("X-Total-Pages");
+      const raw = await res.json();
+
+      let rawList: Product[] = [];
+      let totalCount: number | undefined = headerTotal ? parseInt(headerTotal, 10) : undefined;
+
+      if (Array.isArray(raw)) {
+        rawList = raw.map(normaliseProduct);
+      } else if (raw && Array.isArray(raw.items)) {
+        rawList = raw.items.map(normaliseProduct);
+        if (typeof raw.totalCount === "number") totalCount = raw.totalCount;
+      }
+
+      const totalPages = headerPages
+        ? parseInt(headerPages, 10)
+        : totalCount
+        ? Math.ceil(totalCount / effectivePageSize)
+        : rawList.length >= effectivePageSize
+        ? effectivePage + 1
+        : effectivePage;
+
+      const hasMore = totalCount !== undefined
+        ? effectivePage * effectivePageSize < totalCount
+        : rawList.length >= effectivePageSize;
+
+      return {
+        items: rawList,
+        page: effectivePage,
+        pageSize: effectivePageSize,
+        totalCount: totalCount !== undefined ? totalCount : rawList.length,
+        totalPages,
+        hasMore
+      };
+    } catch {
+      // json parse error
+    }
+  }
+
+  return {
+    items: [],
+    page: effectivePage,
+    pageSize: effectivePageSize,
+    totalCount: 0,
+    totalPages: 1,
+    hasMore: false
+  };
+}
+
 export async function fetchProductsWithFilters(params: ProductFilterParams = {}): Promise<Product[]> {
   const isClient = typeof window !== "undefined";
   const searchParams = new URLSearchParams();
   if (params.categoryId) searchParams.set("categoryId", params.categoryId.toString());
   if (params.search && params.search.trim()) searchParams.set("search", params.search.trim());
+  if (params.collection && params.collection.trim()) {
+    const col = params.collection.trim().toLowerCase();
+    if (col === "bestsellers" || col === "new" || col === "featured") {
+      searchParams.set("collection", col);
+    }
+  }
+  if (params.tag && params.tag.trim()) searchParams.set("tag", params.tag.trim());
+  if (params.brand && params.brand.trim()) searchParams.set("brand", params.brand.trim());
+  if (params.minRating !== undefined && params.minRating !== null) searchParams.set("minRating", params.minRating.toString());
+  if (params.inStock !== undefined && params.inStock !== null) searchParams.set("inStock", params.inStock.toString());
   if (params.page) searchParams.set("page", params.page.toString());
   if (params.pageSize) searchParams.set("pageSize", params.pageSize.toString());
   if (params.size && params.size !== "all") searchParams.set("size", params.size);
   if (params.color && params.color !== "all") searchParams.set("color", params.color);
   if (params.minPrice !== undefined && params.minPrice !== null) searchParams.set("minPrice", params.minPrice.toString());
   if (params.maxPrice !== undefined && params.maxPrice !== null) searchParams.set("maxPrice", params.maxPrice.toString());
-  if (params.sortBy && params.sortBy !== "featured") searchParams.set("sortBy", params.sortBy);
+
+  const effectiveSort = params.sort || params.sortBy;
+  if (effectiveSort && effectiveSort !== "featured") {
+    searchParams.set("sortBy", effectiveSort);
+  }
 
   const queryString = searchParams.toString();
   const url = `${getApiBaseUrl()}/products${queryString ? `?${queryString}` : ""}`;
@@ -211,6 +392,7 @@ export async function fetchProductsWithFilters(params: ProductFilterParams = {})
     try {
       const data = await res.json();
       if (Array.isArray(data)) return data.map(normaliseProduct);
+      if (data && Array.isArray(data.items)) return data.items.map(normaliseProduct);
     } catch {
       // json parse error
     }
@@ -222,17 +404,8 @@ export async function fetchPublishedProducts(params?: ProductFilterParams): Prom
   if (params) {
     return fetchProductsWithFilters(params);
   }
-  const isClient = typeof window !== "undefined";
-  const res = await safeFetch(`${getApiBaseUrl()}/products`, isClient ? { cache: "no-store" } : { next: { revalidate: 0 } });
-  if (res && res.ok) {
-    try {
-      const data = await res.json();
-      if (Array.isArray(data)) return data.map(normaliseProduct);
-    } catch {
-      // json parse error
-    }
-  }
-  return [];
+  // Safe default: Limit to 48 products for general storefront showcase to protect performance with 10,000+ catalogs
+  return fetchProductsWithFilters({ pageSize: 48 });
 }
 
 export async function fetchProductBySlug(slug: string): Promise<Product | null> {
@@ -267,7 +440,22 @@ export async function fetchCategories(): Promise<Category[]> {
   if (res && res.ok) {
     try {
       const data = await res.json();
-      if (Array.isArray(data)) return data.map(normaliseCategory);
+      if (Array.isArray(data)) {
+        const normalised = data.map(normaliseCategory);
+        const map = new Map<string, Category>();
+        for (const cat of normalised) {
+          const key = cat.name.toLowerCase().trim();
+          if (!map.has(key)) {
+            map.set(key, cat);
+          } else {
+            const existing = map.get(key)!;
+            if (cat.slug === "suits" || cat.slug === "kurtis" || cat.slug === "co-ord-sets") {
+              map.set(key, cat);
+            }
+          }
+        }
+        return Array.from(map.values());
+      }
     } catch {
       // json error
     }
@@ -350,7 +538,9 @@ export async function fetchProductsAdminPaged(
 }
 
 export async function fetchAllProductsAdmin(statusFilter?: string, token?: string): Promise<Product[]> {
-  const headers = await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return [];
+  const headers = await getAuthHeadersAsync(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/products/admin?pageSize=100`, { headers, cache: "no-store" });
   if (res && res.ok) {
     try {
@@ -368,7 +558,21 @@ export async function fetchAllProductsAdmin(statusFilter?: string, token?: strin
 }
 
 export async function createProduct(
-  payload: { categoryId: number; name: string; slug: string; description?: string; basePrice: number },
+  payload: {
+    categoryId: number;
+    name: string;
+    slug: string;
+    description?: string;
+    basePrice: number;
+    isFeatured?: boolean;
+    isBestseller?: boolean;
+    isNewArrival?: boolean;
+    isActive?: boolean;
+    tags?: string;
+    mrp?: number;
+    discountPercent?: number;
+    brand?: string;
+  },
   token?: string
 ): Promise<Product | null> {
   const res = await safeFetch(`${PUBLIC_API_URL}/products`, {
@@ -389,7 +593,21 @@ export async function createProduct(
 
 export async function updateProduct(
   id: number,
-  payload: { categoryId: number; name: string; slug: string; description?: string; basePrice: number },
+  payload: {
+    categoryId: number;
+    name: string;
+    slug: string;
+    description?: string;
+    basePrice: number;
+    isFeatured?: boolean;
+    isBestseller?: boolean;
+    isNewArrival?: boolean;
+    isActive?: boolean;
+    tags?: string;
+    mrp?: number;
+    discountPercent?: number;
+    brand?: string;
+  },
   token?: string
 ): Promise<boolean> {
   const res = await safeFetch(`${PUBLIC_API_URL}/products/${id}`, {
@@ -401,7 +619,15 @@ export async function updateProduct(
       name: payload.name,
       slug: payload.slug,
       description: payload.description || null,
-      basePrice: payload.basePrice
+      basePrice: payload.basePrice,
+      isFeatured: payload.isFeatured,
+      isBestseller: payload.isBestseller,
+      isNewArrival: payload.isNewArrival,
+      isActive: payload.isActive,
+      tags: payload.tags,
+      mrp: payload.mrp,
+      discountPercent: payload.discountPercent,
+      brand: payload.brand
     })
   });
   return !!res && (res.ok || res.status === 204);
@@ -707,7 +933,9 @@ export async function updateCoupon(
 // ─── DELIVERY ADDRESSES (Authoritative .NET API) ──────────
 
 export async function fetchUserAddresses(token?: string): Promise<SavedAddress[]> {
-  const headers = await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return [];
+  const headers = await getAuthHeadersAsync(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/addresses`, { headers, cache: "no-store" });
   if (res && res.ok) {
     try {
@@ -721,7 +949,9 @@ export async function fetchUserAddresses(token?: string): Promise<SavedAddress[]
 }
 
 export async function fetchUserAddressById(id: number, token?: string): Promise<SavedAddress | null> {
-  const headers = await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return null;
+  const headers = await getAuthHeadersAsync(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/addresses/${id}`, { headers, cache: "no-store" });
   if (res && res.ok) {
     try {
@@ -734,7 +964,9 @@ export async function fetchUserAddressById(id: number, token?: string): Promise<
 }
 
 export async function createUserAddress(payload: CreateAddressPayload, token?: string): Promise<SavedAddress | null> {
-  const headers = await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return null;
+  const headers = await getAuthHeadersAsync(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/addresses`, {
     method: "POST",
     headers,
@@ -760,7 +992,9 @@ export async function createUserAddress(payload: CreateAddressPayload, token?: s
 }
 
 export async function updateUserAddress(id: number, payload: UpdateAddressPayload, token?: string): Promise<SavedAddress | null> {
-  const headers = await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return null;
+  const headers = await getAuthHeadersAsync(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/addresses/${id}`, {
     method: "PUT",
     headers,
@@ -777,7 +1011,9 @@ export async function updateUserAddress(id: number, payload: UpdateAddressPayloa
 }
 
 export async function setDefaultUserAddress(id: number, token?: string): Promise<boolean> {
-  const headers = await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return false;
+  const headers = await getAuthHeadersAsync(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/addresses/${id}/default`, {
     method: "PUT",
     headers
@@ -786,7 +1022,9 @@ export async function setDefaultUserAddress(id: number, token?: string): Promise
 }
 
 export async function deleteUserAddress(id: number, token?: string): Promise<boolean> {
-  const headers = await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return false;
+  const headers = await getAuthHeadersAsync(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/addresses/${id}`, {
     method: "DELETE",
     headers
@@ -965,12 +1203,14 @@ export async function fetchOrderByIdAuthoritative(
   id: number,
   token?: string
 ): Promise<AuthoritativeOrderDetailsDto | null> {
-  const headers = await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return null;
+  const headers = await getAuthHeadersAsync(activeToken);
   const url = `${getApiBaseUrl()}/orders/${id}`;
 
   try {
-    const res = await fetch(url, { headers, cache: "no-store" });
-    if (res.ok) {
+    const res = await safeFetch(url, { headers, cache: "no-store" });
+    if (res && res.ok) {
       return await res.json();
     }
   } catch (err) {
@@ -987,13 +1227,15 @@ export async function fetchOrdersAuthoritative(
   userId?: number,
   token?: string
 ): Promise<AuthoritativeOrderDetailsDto[]> {
-  const headers = await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return [];
+  const headers = await getAuthHeadersAsync(activeToken);
   const query = userId ? `?userId=${userId}` : "";
   const url = `${getApiBaseUrl()}/orders${query}`;
 
   try {
-    const res = await fetch(url, { headers, cache: "no-store" });
-    if (res.ok) {
+    const res = await safeFetch(url, { headers, cache: "no-store" });
+    if (res && res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
     }
@@ -1012,7 +1254,18 @@ export async function fetchOrdersAdminPaged(
   search?: string,
   token?: string
 ): Promise<PagedAdminResult<Order>> {
-  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) {
+    return {
+      items: [],
+      page,
+      pageSize,
+      totalCount: 0,
+      totalPages: 1,
+      hasMore: false
+    };
+  }
+  const headers = typeof window !== "undefined" ? getAuthHeaders(activeToken) : await getAuthHeadersAsync(activeToken);
   const params = new URLSearchParams();
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
@@ -1081,7 +1334,9 @@ export async function fetchOrdersAdminPaged(
 }
 
 export async function fetchOrdersAdmin(statusFilter?: string, token?: string): Promise<Order[]> {
-  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return [];
+  const headers = typeof window !== "undefined" ? getAuthHeaders(activeToken) : await getAuthHeadersAsync(activeToken);
   let ordersList: Order[] = [];
 
   const backendRes = await safeFetch(`${getApiBaseUrl()}/orders?pageSize=100`, { headers, cache: "no-store" });
@@ -1159,7 +1414,9 @@ export async function fetchOrdersAdmin(statusFilter?: string, token?: string): P
 }
 
 export async function fetchOrderByIdAdmin(id: number, token?: string): Promise<Order | null> {
-  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return null;
+  const headers = typeof window !== "undefined" ? getAuthHeaders(activeToken) : await getAuthHeadersAsync(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/orders/${id}`, { headers, cache: "no-store" });
   if (res && res.ok) {
     try {
@@ -1293,6 +1550,38 @@ export async function loginBackend(
   return { success: false, error: "Authentication service offline." };
 }
 
+export async function loginWithGoogleBackend(payload: {
+  credential?: string;
+  idToken?: string;
+  email?: string;
+  name?: string;
+}): Promise<{ success: boolean; data?: AuthResponse; error?: string }> {
+  try {
+    const res = await safeFetch(`${getApiBaseUrl()}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res && res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { success: true, data };
+    }
+    if (res && res.status === 404) {
+      return {
+        success: false,
+        error: "Google Sign-In endpoint (/api/v1/auth/google) is not yet deployed on the backend server. Please sign in using Mobile OTP or Email."
+      };
+    }
+    if (res && !res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.message || errData.error || "Google authentication failed on server." };
+    }
+    return { success: false, error: "Google authentication service unavailable." };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Google authentication service offline." };
+  }
+}
+
 // ─── MOBILE OTP & AUTH METHODS API ───────────────────────
 
 export async function fetchAuthMethods(): Promise<AuthMethodsResponse | null> {
@@ -1406,7 +1695,19 @@ export async function verifyOtpBackend(
 // ─── ADMIN AUTH SETTINGS API ────────────────────────────
 
 export async function fetchAdminAuthSettings(token?: string): Promise<AdminAuthSettings | null> {
-  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) {
+    return {
+      googleEnabled: false,
+      googleEnabledByConfig: false,
+      mobileOtpEnabled: true,
+      mobileOtpEnabledByConfig: true,
+      otpLength: 6,
+      resendCooldownSeconds: 30,
+      allowedCountries: ["IN"]
+    };
+  }
+  const headers = typeof window !== "undefined" ? getAuthHeaders(activeToken) : await getAuthHeadersAsync(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/admin/settings/auth`, {
     headers,
     cache: "no-store"
@@ -1444,7 +1745,9 @@ export async function updateAdminAuthSettings(
 }
 
 export async function fetchCurrentUser(token?: string): Promise<User | null> {
-  const headers = getAuthHeaders(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return null;
+  const headers = getAuthHeaders(activeToken);
   const res = await safeFetch(`${getApiBaseUrl()}/auth/me`, { headers });
   if (res && res.ok) {
     try {
@@ -1467,9 +1770,11 @@ export async function fetchCurrentUser(token?: string): Promise<User | null> {
 }
 
 export async function changePassword(payload: ChangePasswordPayload, token?: string): Promise<boolean> {
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return false;
   const res = await safeFetch(`${getApiBaseUrl()}/users/change-password`, {
     method: "POST",
-    headers: getAuthHeaders(token),
+    headers: getAuthHeaders(activeToken),
     body: JSON.stringify(payload)
   });
   return !!res && (res.ok || res.status === 204);
@@ -1500,7 +1805,18 @@ export async function fetchUsersAdminPaged(
   search?: string,
   token?: string
 ): Promise<PagedAdminResult<User>> {
-  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) {
+    return {
+      items: [],
+      page,
+      pageSize,
+      totalCount: 0,
+      totalPages: 1,
+      hasMore: false
+    };
+  }
+  const headers = typeof window !== "undefined" ? getAuthHeaders(activeToken) : await getAuthHeadersAsync(activeToken);
   const skip = (page - 1) * pageSize;
   const take = pageSize;
 
@@ -1579,7 +1895,9 @@ export async function fetchUsersAdmin(
   search?: string,
   token?: string
 ): Promise<User[]> {
-  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const activeToken = token || (typeof window !== "undefined" ? getAuthToken() : await getAuthTokenAsync());
+  if (!activeToken) return [];
+  const headers = typeof window !== "undefined" ? getAuthHeaders(activeToken) : await getAuthHeadersAsync(activeToken);
   const params = new URLSearchParams();
   params.set("skip", String(skip));
   params.set("take", String(take));
@@ -1966,3 +2284,158 @@ export async function saveBannersConfig(
     };
   }
 }
+
+// ─── PRODUCT REVIEWS API (Verified Buyers) ───────────────
+
+export async function fetchProductReviews(
+  productId: number,
+  cursorCreatedAt?: string,
+  cursorReviewId?: number,
+  pageSize = 20
+): Promise<PaginatedReviewResponseDto | null> {
+  const params = new URLSearchParams();
+  params.set("pageSize", String(pageSize));
+  if (cursorCreatedAt) params.set("cursorCreatedAt", cursorCreatedAt);
+  if (cursorReviewId) params.set("cursorReviewId", String(cursorReviewId));
+
+  const qs = params.toString();
+  // Try standard /api/v1/products/{id}/reviews and fallback /api/products/{id}/reviews
+  const primaryUrl = `${getApiBaseUrl()}/products/${productId}/reviews?${qs}`;
+  const res = await safeFetch(primaryUrl, { cache: "no-store" });
+  if (res && res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      // ignore
+    }
+  }
+
+  // Fallback to unversioned route if needed
+  const fallbackUrl = `${getApiBaseUrl().replace(/\/v1$/, "")}/products/${productId}/reviews?${qs}`;
+  const fbRes = await safeFetch(fallbackUrl, { cache: "no-store" });
+  if (fbRes && fbRes.ok) {
+    try {
+      return await fbRes.json();
+    } catch {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
+export async function fetchReviewEligibility(
+  productId: number,
+  token?: string
+): Promise<ReviewEligibilityDto | null> {
+  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const primaryUrl = `${getApiBaseUrl()}/products/${productId}/reviews/eligibility`;
+  const res = await safeFetch(primaryUrl, { headers, cache: "no-store" });
+  if (res && res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      // ignore
+    }
+  }
+
+  const fallbackUrl = `${getApiBaseUrl().replace(/\/v1$/, "")}/products/${productId}/reviews/eligibility`;
+  const fbRes = await safeFetch(fallbackUrl, { headers, cache: "no-store" });
+  if (fbRes && fbRes.ok) {
+    try {
+      return await fbRes.json();
+    } catch {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
+export async function createProductReview(
+  productId: number,
+  data: { rating: number; title: string; comment: string },
+  token?: string
+): Promise<{ success: boolean; data?: ProductReviewDto; error?: string }> {
+  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const primaryUrl = `${getApiBaseUrl()}/products/${productId}/reviews`;
+
+  try {
+    const res = await fetch(primaryUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        productId,
+        rating: data.rating,
+        title: data.title,
+        comment: data.comment
+      })
+    });
+
+    if (res.ok) {
+      const reviewData = await res.json();
+      return { success: true, data: reviewData };
+    }
+
+    // Try fallback URL if 404
+    if (res.status === 404) {
+      const fallbackUrl = `${getApiBaseUrl().replace(/\/v1$/, "")}/products/${productId}/reviews`;
+      const fbRes = await fetch(fallbackUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          productId,
+          rating: data.rating,
+          title: data.title,
+          comment: data.comment
+        })
+      });
+      if (fbRes.ok) {
+        return { success: true, data: await fbRes.json() };
+      }
+    }
+
+    let errMsg = "Failed to submit review.";
+    try {
+      const errBody = await res.json();
+      errMsg = errBody.detail || errBody.message || errBody.title || errMsg;
+    } catch {
+      // ignore
+    }
+
+    if (res.status === 401) {
+      errMsg = "Please sign in to submit a review.";
+    } else if (res.status === 400 || res.status === 403) {
+      errMsg = errMsg || "Only verified buyers with delivered orders can submit a review.";
+    }
+
+    return { success: false, error: errMsg };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error while submitting review." };
+  }
+}
+
+export async function deleteProductReview(
+  productId: number,
+  reviewId: number,
+  token?: string
+): Promise<{ success: boolean; error?: string }> {
+  const headers = typeof window !== "undefined" ? getAuthHeaders(token) : await getAuthHeadersAsync(token);
+  const primaryUrl = `${getApiBaseUrl()}/products/${productId}/reviews/${reviewId}`;
+
+  try {
+    const res = await fetch(primaryUrl, {
+      method: "DELETE",
+      headers
+    });
+
+    if (res.ok || res.status === 204) {
+      return { success: true };
+    }
+
+    return { success: false, error: "Failed to delete review." };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Network error." };
+  }
+}
+

@@ -49,6 +49,19 @@ export interface Product {
   variants: ProductVariant[];
   images: ProductImage[];
 
+  // ── Merchandising & Catalog Attributes (Backend Aligned) ──
+  isFeatured?: boolean;
+  isBestseller?: boolean;
+  isNewArrival?: boolean;
+  isActive?: boolean;
+  tags?: string;
+  mrp?: number;
+  discountPercent?: number;
+  brand?: string;
+  averageRating?: number;
+  reviewCount?: number;
+  stockQuantity?: number;
+
   // ── UI-only fields (not from API) ──
   id?: number; // alias for backward compat
   categorySlug?: string;
@@ -81,6 +94,11 @@ export interface FilterOptions {
 export interface ProductFilterParams {
   categoryId?: number;
   search?: string;
+  collection?: "bestsellers" | "new" | "featured" | string;
+  tag?: string;
+  brand?: string;
+  minRating?: number;
+  inStock?: boolean;
   page?: number;
   pageSize?: number;
   size?: string;
@@ -88,6 +106,7 @@ export interface ProductFilterParams {
   minPrice?: number;
   maxPrice?: number;
   sortBy?: string;
+  sort?: string;
 }
 
 // ─── Categories ─────────────────────────────────────────
@@ -101,6 +120,7 @@ export interface Category {
   // ── UI-only compat fields ──
   id?: number;
   description?: string;
+  imageUrl?: string;
   productCount?: number;
   createdAt?: string;
 }
@@ -344,6 +364,14 @@ export interface OtpConfig {
   allowedCountries: string[];
 }
 
+export interface GoogleLoginPayload {
+  credential?: string;
+  idToken?: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+}
+
 export interface AuthMethodsResponse {
   google: boolean;
   mobileOtp: boolean;
@@ -580,4 +608,44 @@ export interface AuthoritativeOrderDetailsDto {
   items: AuthoritativeOrderItemDto[];
   payment?: AuthoritativePaymentDto | null;
 }
+
+// ─── Product Reviews (Backend Aligned) ───────────────────
+
+export interface ProductReviewDto {
+  reviewId: number;
+  productId: number;
+  userId: number;
+  reviewerName: string;
+  rating: number;
+  title: string;
+  comment: string;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface ProductReviewSummaryDto {
+  productId: number;
+  averageRating: number;
+  totalReviews: number;
+  rating1Star: number;
+  rating2Star: number;
+  rating3Star: number;
+  rating4Star: number;
+  rating5Star: number;
+}
+
+export interface PaginatedReviewResponseDto {
+  summary: ProductReviewSummaryDto;
+  reviews: ProductReviewDto[];
+  hasMore: boolean;
+}
+
+export interface ReviewEligibilityDto {
+  canReview: boolean;
+  hasPurchased: boolean;
+  orderEligible: boolean;
+  hasReviewed: boolean;
+  reason?: string | null;
+}
+
 

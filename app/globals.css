@@ -2260,6 +2260,216 @@ img {
   }
 }
 
+/* ==========================================================================
+   AMAZON / FLIPKART STYLE HERO SPOTLIGHT DEAL CARDS
+   ========================================================================== */
+.hero-section-luxe-container {
+  position: relative;
+  width: 100%;
+}
+
+.hero-spotlight-section {
+  position: relative;
+  z-index: 10;
+  margin-top: -36px;
+  margin-bottom: 36px;
+  padding: 0 clamp(16px, 3vw, 32px);
+}
+
+.hero-spotlight-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  width: 100%;
+  max-width: 1360px;
+  margin: 0 auto;
+}
+
+.hero-spotlight-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: #FFFFFF;
+  border: 1.5px solid rgba(232, 208, 210, 0.85);
+  border-radius: 18px;
+  padding: 16px 18px;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(104, 56, 64, 0.07);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-spotlight-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--nilasa-gold, #B8894F), #B87078);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.hero-spotlight-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--nilasa-gold, #B8894F);
+  box-shadow: 0 16px 36px rgba(104, 56, 64, 0.14);
+}
+
+.hero-spotlight-card:hover::before {
+  opacity: 1;
+}
+
+.spotlight-card-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.spotlight-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #B87078;
+  background: #F8E8E8;
+  padding: 2px 8px;
+  border-radius: 6px;
+  width: fit-content;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.spotlight-eyebrow {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: #8A5A62;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.spotlight-title {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #683840;
+  line-height: 1.25;
+  margin: 0 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spotlight-deal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #FFF7ED;
+  border: 1px solid #FFEDD5;
+  color: #C2410C;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: fit-content;
+  margin-bottom: 4px;
+}
+
+.spotlight-subtitle {
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.74rem;
+  color: #8A5A62;
+  margin: 0 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spotlight-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #B87078;
+  transition: color 0.2s ease;
+}
+
+.hero-spotlight-card:hover .spotlight-cta {
+  color: #683840;
+}
+
+.spotlight-cta-arrow {
+  transition: transform 0.2s ease;
+}
+
+.hero-spotlight-card:hover .spotlight-cta-arrow {
+  transform: translateX(4px);
+}
+
+.spotlight-card-image-wrap {
+  position: relative;
+  width: 88px;
+  height: 98px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(232, 208, 210, 0.6);
+  background: #F8E8E8;
+}
+
+.spotlight-card-image {
+  object-fit: cover;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hero-spotlight-card:hover .spotlight-card-image {
+  transform: scale(1.08);
+}
+
+@media (max-width: 1200px) {
+  .hero-spotlight-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .hero-spotlight-section {
+    margin-top: -24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-spotlight-section {
+    margin-top: 14px;
+    margin-bottom: 24px;
+    padding: 0 12px;
+  }
+  .hero-spotlight-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .hero-spotlight-card {
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+  .spotlight-card-image-wrap {
+    width: 76px;
+    height: 86px;
+  }
+  .spotlight-title {
+    font-size: 0.90rem;
+  }
+}
+
 /* Section Headings & Text Links */
 .section {
   padding: 64px 0;
@@ -6764,6 +6974,491 @@ button, a, input, select, textarea {
     gap: 12px !important;
   }
 }
+
+/* ==========================================================================
+   HOMEPAGE MODULAR MERCHANDISING STYLES (CATEGORY CIRCLES, TABS, OCCASIONS)
+   ========================================================================== */
+
+/* 1. Category Circles Strip */
+.category-circles-wrapper {
+  margin: 28px auto 16px;
+}
+
+.category-circles-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 4px 16px;
+  scrollbar-width: none;
+}
+
+.category-circles-container::-webkit-scrollbar {
+  display: none;
+}
+
+.category-circle-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.category-circle-item:hover {
+  transform: translateY(-3px);
+}
+
+.category-circle-ring {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(135deg, rgba(212, 178, 88, 0.4), rgba(122, 40, 50, 0.2));
+  border: 1px solid rgba(212, 178, 88, 0.4);
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.category-circle-item:hover .category-circle-ring {
+  border-color: var(--nilasa-gold, #D4B258);
+  box-shadow: 0 6px 20px rgba(212, 178, 88, 0.3);
+  transform: scale(1.05);
+}
+
+.category-circle-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  background: var(--nilasa-surface-card, #FFFFFF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.category-circle-img {
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.category-circle-item:hover .category-circle-img {
+  transform: scale(1.1);
+}
+
+.category-circle-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--nilasa-primary-soft, #FDF2F3);
+}
+
+.category-circle-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nilasa-ink, #1F2937);
+  text-align: center;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.category-circle-item:hover .category-circle-name {
+  color: var(--nilasa-primary, #7A2832);
+}
+
+/* 2. Tabbed Product Showcase */
+.tabbed-showcase-section {
+  margin: 36px auto 60px;
+}
+
+.tabbed-showcase-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.tabbed-showcase-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 6px 0 0;
+  color: var(--nilasa-ink, #1F2937);
+  letter-spacing: -0.01em;
+}
+
+.tab-pills-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #F1F3F7;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  flex-wrap: wrap;
+}
+
+.tab-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #64748B;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-pill-btn:hover {
+  color: var(--nilasa-ink, #1E293B);
+}
+
+.tab-pill-btn--active {
+  background: #FFFFFF !important;
+  color: var(--nilasa-primary, #7A2832) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tabbed-showcase-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: var(--nilasa-primary, #7A2832);
+  color: #FFFFFF !important;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(122, 40, 50, 0.25);
+}
+
+.tabbed-showcase-cta:hover {
+  background: #5D1C24;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(122, 40, 50, 0.35);
+}
+
+/* 3. Occasion Grid */
+.occasion-section {
+  margin: 60px auto 80px;
+}
+
+.occasion-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.occasion-card {
+  position: relative;
+  height: 380px;
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 24px 20px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.occasion-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.2);
+}
+
+.occasion-card__image-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.occasion-card__img {
+  object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.occasion-card:hover .occasion-card__img {
+  transform: scale(1.08);
+}
+
+.occasion-card__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.1) 0%, rgba(15, 23, 42, 0.85) 100%);
+}
+
+.occasion-card__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.occasion-card__badge {
+  align-self: flex-start;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(212, 178, 88, 0.25);
+  border: 1px solid rgba(212, 178, 88, 0.5);
+  color: #F8E7B4;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.occasion-card__title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.occasion-card__subtitle {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.4;
+  margin: 0 0 6px;
+}
+
+.occasion-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #D4B258;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: gap 0.2s ease;
+}
+
+.occasion-card:hover .occasion-card__cta {
+  gap: 8px;
+}
+
+@media (max-width: 1024px) {
+  .occasion-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .occasion-card {
+    height: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 1. Category Circles Strip on Mobile */
+  .category-circles-wrapper {
+    margin: 16px auto 14px;
+  }
+  .category-circles-container {
+    justify-content: flex-start;
+    gap: 16px;
+    padding: 6px 12px 12px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .category-circles-container::-webkit-scrollbar {
+    display: none;
+  }
+  .category-circle-item {
+    width: 66px;
+    gap: 6px;
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+  .category-circle-ring {
+    width: 64px;
+    height: 64px;
+    padding: 2.5px;
+    border-width: 1.5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+  .category-circle-name {
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: normal;
+    text-align: center;
+    max-width: 66px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    height: 26px;
+  }
+
+  /* 2. Tabbed Product Showcase Header & Tabs on Mobile */
+  .tabbed-showcase-section {
+    margin: 20px auto 44px;
+  }
+  .tabbed-showcase-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+    width: 100%;
+  }
+  .tabbed-showcase-title {
+    font-size: 1.38rem;
+    line-height: 1.25;
+    margin-top: 4px;
+  }
+  .tab-pills-scroll-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 3px;
+  }
+  .tab-pills-scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+  .tab-pills-wrapper {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 4px;
+    background: #F1F5F9;
+    border-radius: 999px;
+    width: max-content;
+  }
+  .tab-pill-btn {
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    border-radius: 999px;
+    gap: 5px;
+  }
+
+  /* 3. Product Grid & Cards on Mobile */
+  .tabbed-showcase-section .product-grid,
+  .product-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px 10px !important;
+    width: 100% !important;
+    justify-content: stretch !important;
+  }
+
+  .mobile-product-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    background: #FFFFFF;
+  }
+  .mobile-product-card__media {
+    aspect-ratio: 3 / 4;
+    border-radius: 12px 12px 0 0;
+  }
+  .mobile-product-card__badge {
+    top: 6px;
+    left: 6px;
+    font-size: 8.5px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .mobile-product-card__wishlist {
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+  }
+  .mobile-product-card__body {
+    padding: 8px 8px 10px;
+  }
+  .mobile-product-card__title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0 0 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.1em;
+  }
+  .mobile-product-card__pricing {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .mobile-product-card__price {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+  .mobile-product-card__original-price {
+    font-size: 0.74rem;
+    text-decoration: line-through;
+    color: #94A3B8;
+  }
+  .mobile-product-card__footer {
+    padding-top: 4px;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+  }
+  .color-label {
+    font-size: 0.68rem;
+    max-width: 52px;
+  }
+  .mobile-product-card__quick-add {
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+  }
+
+  .tabbed-showcase-cta {
+    display: flex;
+    width: 100%;
+    max-width: 320px;
+    margin: 24px auto 0;
+    justify-content: center;
+    padding: 12px 20px;
+    font-size: 13px;
+  }
+
+  /* 4. Occasion Grid on Mobile */
+  .occasion-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .occasion-card {
+    height: 280px;
+  }
+}
+
 
 
 

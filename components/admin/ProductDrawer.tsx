@@ -70,6 +70,15 @@ export function ProductDrawer({
   const [description, setDescription] = useState("");
   const [defaultColor, setDefaultColor] = useState("Indigo Blue");
 
+  // Merchandising & Catalog Attributes
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isBestseller, setIsBestseller] = useState(false);
+  const [isNewArrival, setIsNewArrival] = useState(false);
+  const [tags, setTags] = useState("");
+  const [mrp, setMrp] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("");
+  const [brand, setBrand] = useState("Nilasa");
+
   // Variant Matrix State
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [deletedVariantIds, setDeletedVariantIds] = useState<number[]>([]);
@@ -109,6 +118,14 @@ export function ProductDrawer({
       setDescription(product.description || "");
       setExistingImages(product.images || []);
 
+      setIsFeatured(!!product.isFeatured);
+      setIsBestseller(!!product.isBestseller);
+      setIsNewArrival(!!product.isNewArrival);
+      setTags(product.tags || "");
+      setMrp(product.mrp ? String(product.mrp) : "");
+      setDiscountPercent(product.discountPercent ? String(product.discountPercent) : "");
+      setBrand(product.brand || "Nilasa");
+
       const primaryColor = product.variants?.[0]?.color || "Indigo Blue";
       setDefaultColor(primaryColor);
 
@@ -145,6 +162,13 @@ export function ProductDrawer({
       setStatus("Published");
       setDescription("");
       setDefaultColor("Indigo Blue");
+      setIsFeatured(false);
+      setIsBestseller(false);
+      setIsNewArrival(false);
+      setTags("");
+      setMrp("");
+      setDiscountPercent("");
+      setBrand("Nilasa");
       setExistingImages([]);
 
       const standardInit = ["S", "M", "L", "XL"].map((sz) => ({
@@ -416,7 +440,14 @@ export function ProductDrawer({
           name: name.trim(),
           slug: slug.trim().toLowerCase(),
           description: description.trim() || undefined,
-          basePrice: parsedPrice
+          basePrice: parsedPrice,
+          isFeatured,
+          isBestseller,
+          isNewArrival,
+          tags: tags.trim() || undefined,
+          mrp: mrp ? Number(mrp) : undefined,
+          discountPercent: discountPercent ? Number(discountPercent) : undefined,
+          brand: brand.trim() || undefined
         });
 
         if (!success) {
@@ -464,7 +495,14 @@ export function ProductDrawer({
           name: name.trim(),
           slug: slug.trim().toLowerCase(),
           description: description.trim() || undefined,
-          basePrice: parsedPrice
+          basePrice: parsedPrice,
+          isFeatured,
+          isBestseller,
+          isNewArrival,
+          tags: tags.trim() || undefined,
+          mrp: mrp ? Number(mrp) : undefined,
+          discountPercent: discountPercent ? Number(discountPercent) : undefined,
+          brand: brand.trim() || undefined
         });
 
         if (!created) {
@@ -633,6 +671,162 @@ export function ProductDrawer({
                 onChange={(e) => setDescription(e.target.value)}
               />
             </label>
+          </div>
+
+          {/* SECTION: Merchandising & Badges (Bestseller, New Arrival, Featured) */}
+          <div
+            style={{
+              backgroundColor: "var(--admin-surface)",
+              border: "1px solid var(--admin-slate-200)",
+              borderRadius: 8,
+              padding: 18,
+              display: "flex",
+              flexDirection: "column",
+              gap: 14
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Sparkles size={16} color="var(--admin-accent)" />
+              <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--admin-ink)" }}>
+                Merchandising, Badges & Catalog Attributes
+              </span>
+            </div>
+
+            {/* Badges Toggle Cards Row */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+              {/* Bestseller Toggle */}
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: isBestseller ? "1px solid #B8912E" : "1px solid var(--admin-slate-200)",
+                  backgroundColor: isBestseller ? "rgba(184, 145, 46, 0.08)" : "#FFFFFF",
+                  cursor: "pointer",
+                  transition: "all 0.18s ease"
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isBestseller}
+                  onChange={(e) => setIsBestseller(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: "#B8912E" }}
+                />
+                <div>
+                  <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--admin-ink)" }}>🔥 Bestseller</div>
+                  <div style={{ fontSize: "11px", color: "var(--admin-text-muted)" }}>Feature in Best Sellers tab</div>
+                </div>
+              </label>
+
+              {/* New Arrival Toggle */}
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: isNewArrival ? "1px solid #047857" : "1px solid var(--admin-slate-200)",
+                  backgroundColor: isNewArrival ? "rgba(4, 120, 87, 0.08)" : "#FFFFFF",
+                  cursor: "pointer",
+                  transition: "all 0.18s ease"
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isNewArrival}
+                  onChange={(e) => setIsNewArrival(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: "#047857" }}
+                />
+                <div>
+                  <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--admin-ink)" }}>✨ New Arrival</div>
+                  <div style={{ fontSize: "11px", color: "var(--admin-text-muted)" }}>Highlight in New Drops</div>
+                </div>
+              </label>
+
+              {/* Featured Toggle */}
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: isFeatured ? "1px solid #7C5999" : "1px solid var(--admin-slate-200)",
+                  backgroundColor: isFeatured ? "rgba(124, 89, 153, 0.08)" : "#FFFFFF",
+                  cursor: "pointer",
+                  transition: "all 0.18s ease"
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isFeatured}
+                  onChange={(e) => setIsFeatured(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: "#7C5999" }}
+                />
+                <div>
+                  <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--admin-ink)" }}>🌟 Featured</div>
+                  <div style={{ fontSize: "11px", color: "var(--admin-text-muted)" }}>Showcase on Home Atelier</div>
+                </div>
+              </label>
+            </div>
+
+            {/* MRP, Discount, Brand & Tags Grid */}
+            <div className="form-grid" style={{ marginTop: 4 }}>
+              <label className="field">
+                <span>MRP / Strikethrough Price (₹ INR)</span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 6990"
+                  value={mrp}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMrp(val);
+                    if (val && basePrice && Number(val) > Number(basePrice)) {
+                      const disc = Math.round(((Number(val) - Number(basePrice)) / Number(val)) * 100);
+                      setDiscountPercent(String(disc));
+                    }
+                  }}
+                  className="admin-tabular"
+                />
+              </label>
+
+              <label className="field">
+                <span>Discount (%)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  placeholder="e.g. 20"
+                  value={discountPercent}
+                  onChange={(e) => setDiscountPercent(e.target.value)}
+                  className="admin-tabular"
+                />
+              </label>
+
+              <label className="field">
+                <span>Brand</span>
+                <input
+                  type="text"
+                  placeholder="Nilasa"
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                />
+              </label>
+
+              <label className="field">
+                <span>Catalog Tags (Comma-separated)</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Pure Silk, Festive, Handloom, Zari"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                />
+              </label>
+            </div>
           </div>
 
           {/* SECTION 2: Size & Stock Matrix (Add & Update) */}

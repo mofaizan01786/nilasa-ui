@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { fetchCategories, fetchPublishedProducts, fetchProductFilters } from "@/lib/dotnet-backend";
+import { fetchCategories, fetchProductsPaged, fetchProductFilters } from "@/lib/dotnet-backend";
 import { ShopClient } from "@/app/shop/ShopClient";
 
 export const revalidate = 3600; // ISR cache strategy
@@ -43,18 +43,16 @@ export default async function CategoryPage({
   const slug = resolvedParams?.slug;
   if (!slug) notFound();
 
-  const [categories, allProducts, filters] = await Promise.all([
-    fetchCategories(),
-    fetchPublishedProducts(),
-    fetchProductFilters()
-  ]);
-
+  const categories = await fetchCategories();
   const category = categories.find((c) => c.slug.toLowerCase() === slug.toLowerCase());
   if (!category) notFound();
 
-  const categoryProducts = allProducts.filter(
-    (p) => p.categoryId === category.categoryId || p.categorySlug?.toLowerCase() === category.slug.toLowerCase()
-  );
+  const [initialPaged, filters] = await Promise.all([
+    fetchProductsPaged({ categoryId: category.categoryId }, 1, 24),
+    fetchProductFilters()
+  ]);
+
+  const categoryProducts = initialPaged.items;
 
   return (
     <main className="shop-page-wrapper">
