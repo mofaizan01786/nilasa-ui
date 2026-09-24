@@ -1811,19 +1811,21 @@ img {
    ========================================================================== */
 .hero-carousel-wrapper {
   position: relative;
-  min-height: calc(100vh - 120px);
+  min-height: 480px;
   background: linear-gradient(135deg, #F8E8E8 0%, #F5DFE1 50%, #F8E8E8 100%);
   display: flex;
   align-items: center;
   overflow: hidden;
   user-select: none;
+  padding-top: 32px;
+  padding-bottom: 52px;
 }
 
 .hero-carousel-slide {
   width: 100%;
   max-width: 1360px;
   margin: 0 auto;
-  padding: clamp(24px, 4vw, 50px) clamp(20px, 4vw, 40px);
+  padding: 16px clamp(20px, 4vw, 40px) 24px;
   display: grid;
   grid-template-columns: 1.15fr 1fr;
   align-items: center;
@@ -2271,8 +2273,8 @@ img {
 .hero-spotlight-section {
   position: relative;
   z-index: 10;
-  margin-top: -36px;
-  margin-bottom: 36px;
+  margin-top: -32px;
+  margin-bottom: 8px;
   padding: 0 clamp(16px, 3vw, 32px);
 }
 
@@ -6981,7 +6983,7 @@ button, a, input, select, textarea {
 
 /* 1. Category Circles Strip */
 .category-circles-wrapper {
-  margin: 28px auto 16px;
+  margin: 6px auto 10px;
 }
 
 .category-circles-container {
@@ -6991,8 +6993,13 @@ button, a, input, select, textarea {
   gap: 24px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 8px 4px 16px;
+  padding: 4px 4px 8px;
   scrollbar-width: none;
+}
+
+.tabbed-showcase-section {
+  padding-top: 20px !important;
+  padding-bottom: 48px !important;
 }
 
 .category-circles-container::-webkit-scrollbar {
@@ -7273,12 +7280,12 @@ button, a, input, select, textarea {
 @media (max-width: 768px) {
   /* 1. Category Circles Strip on Mobile */
   .category-circles-wrapper {
-    margin: 16px auto 14px;
+    margin: 8px auto 10px;
   }
   .category-circles-container {
     justify-content: flex-start;
     gap: 16px;
-    padding: 6px 12px 12px;
+    padding: 4px 12px 8px;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -7315,7 +7322,8 @@ button, a, input, select, textarea {
 
   /* 2. Tabbed Product Showcase Header & Tabs on Mobile */
   .tabbed-showcase-section {
-    margin: 20px auto 44px;
+    margin: 12px auto 36px;
+    padding-top: 10px !important;
   }
   .tabbed-showcase-header {
     display: flex;

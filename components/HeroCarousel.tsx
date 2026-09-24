@@ -81,14 +81,14 @@ const DEFAULT_SLIDES: HeroSlide[] = [
   },
   {
     id: "slide-2",
-    tag: "HERITAGE HANDLOOM WEAVES",
+    tag: "ROYAL CHANDERI COLLECTION",
     headline: "Timeless Heritage Weaves",
     subheadline: "Pure Zari & Tissue Silk",
     description:
-      "Intricate gold zari motifs woven on handloom looms by master artisans. Draped in regal festive hues for weddings and celebratory soirées.",
+      "Intricate gold zari motifs woven on handloom looms by master artisans. Draped in regal festive hues for grand occasions and quiet celebrations.",
     offerBadge: "⚡ Use Code NILASA10 for 10% Off",
     primaryCta: {
-      label: "Shop Handloom Silks →",
+      label: "Shop Chanderi Silks →",
       href: "/category/suits"
     },
     secondaryCta: {
@@ -213,13 +213,13 @@ function transformRawSlides(heroData: any): HeroSlide[] {
     if (activeList.length > 0) {
       return activeList.map((s, idx) => ({
         id: s.id || `slide-${idx + 1}`,
-        tag: s.eyebrow || s.tag || "FESTIVE COUTURE 2026",
-        headline: s.headline || "Grace In Every Thread",
+        tag: s.eyebrow || s.tag || DEFAULT_SLIDES[idx % DEFAULT_SLIDES.length].tag,
+        headline: s.headline || DEFAULT_SLIDES[idx % DEFAULT_SLIDES.length].headline,
         subheadline: s.subheadline || s.tagPill || "",
-        description: s.description || "",
-        offerBadge: s.offerBadge || "🔥 Festive Sale • Up to 40% Off",
-        primaryCta: s.primaryCta || { label: "Shop Festive Edit →", href: "/shop" },
-        secondaryCta: s.secondaryCta || { label: "Explore Suit Sets", href: "/category/suits" },
+        description: s.description || DEFAULT_SLIDES[idx % DEFAULT_SLIDES.length].description,
+        offerBadge: s.offerBadge || DEFAULT_SLIDES[idx % DEFAULT_SLIDES.length].offerBadge,
+        primaryCta: s.primaryCta || DEFAULT_SLIDES[idx % DEFAULT_SLIDES.length].primaryCta,
+        secondaryCta: s.secondaryCta || DEFAULT_SLIDES[idx % DEFAULT_SLIDES.length].secondaryCta,
         imageUrl:
           s.imageUrl && !s.imageUrl.includes("1485968579580") && !s.imageUrl.includes("1539109136881")
             ? s.imageUrl
@@ -310,12 +310,12 @@ export function HeroCarousel({ initialHero }: { initialHero?: any }) {
     setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
   }, [totalSlides]);
 
-  // Auto-play timer (Amazon / Flipkart 5.5s interval)
+  // Auto-play timer
   useEffect(() => {
     if (!isPaused && totalSlides > 1) {
       timerRef.current = setInterval(() => {
         nextSlide();
-      }, 6000);
+      }, 5500);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -401,7 +401,7 @@ export function HeroCarousel({ initialHero }: { initialHero?: any }) {
               </Link>
             </div>
 
-            {/* Trust Highlights Micro-Strip (Amazon/Myntra Luxe Grade) */}
+            {/* Trust Highlights Micro-Strip */}
             <div className="hero-trust-strip">
               <div className="hero-trust-item">
                 <Star size={13} className="hero-trust-star" />
@@ -556,3 +556,5 @@ export function HeroCarousel({ initialHero }: { initialHero?: any }) {
     </div>
   );
 }
+
+export default HeroCarousel;
