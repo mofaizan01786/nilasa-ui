@@ -1560,7 +1560,9 @@ export async function loginWithGoogleBackend(payload: {
     const res = await safeFetch(`${getApiBaseUrl()}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        credential: payload.credential || payload.idToken
+      })
     });
     if (res && res.ok) {
       const data = await res.json().catch(() => ({}));

@@ -4,6 +4,7 @@ import "./globals.css";
 import { CartProvider } from "@/components/CartProvider";
 import { WishlistProvider } from "@/components/WishlistProvider";
 import { LayoutWrapper } from "@/components/LayoutWrapper";
+import { GoogleOAuthWrapper } from "@/components/GoogleOAuthWrapper";
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
@@ -56,11 +57,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${playfairDisplay.variable} ${openSans.variable} ${jetbrainsMono.variable}`}>
       <body>
-        <WishlistProvider>
-          <CartProvider>
-            <LayoutWrapper>{children}</LayoutWrapper>
-          </CartProvider>
-        </WishlistProvider>
+        <GoogleOAuthWrapper>
+          <WishlistProvider>
+            <CartProvider>
+              <LayoutWrapper>{children}</LayoutWrapper>
+            </CartProvider>
+          </WishlistProvider>
+        </GoogleOAuthWrapper>
       </body>
     </html>
   );
