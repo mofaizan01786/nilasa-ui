@@ -379,24 +379,16 @@ export default function AdminNavigationPage() {
         </div>
       )}
 
-      {/* Main 2-Column Workspace */}
+      {/* Main 2-Column Workspace (Responsive) */}
       <div
+        className="admin-form-preview-grid"
         style={{
-          display: "grid",
-          gridTemplateColumns: "320px 1fr",
-          gap: "24px",
+          gridTemplateColumns: "300px 1fr",
           alignItems: "flex-start"
         }}
       >
         {/* Left Column: Navigation Tabs List */}
-        <div
-          style={{
-            background: "#FFFFFF",
-            border: "1px solid var(--admin-slate-200)",
-            borderRadius: "10px",
-            padding: "16px"
-          }}
-        >
+        <div className="admin-luxury-card" style={{ padding: "16px" }}>
           <div
             style={{
               display: "flex",
@@ -525,14 +517,7 @@ export default function AdminNavigationPage() {
 
         {/* Right Column: Tab Editor & Mega Menu Config */}
         {activeItem ? (
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid var(--admin-slate-200)",
-              borderRadius: "10px",
-              padding: "24px"
-            }}
-          >
+          <div className="admin-luxury-card" style={{ padding: "24px", minWidth: 0 }}>
             {/* Tab Basic Settings */}
             <div
               style={{

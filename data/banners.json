@@ -1,11 +1,11 @@
 {
-  "updatedAt": "2026-08-23T08:58:18.471Z",
+  "updatedAt": "2026-09-24T20:20:00.000Z",
   "announcementBar": {
     "isActive": true,
     "messages": [
-      "✨ NILASA FESTIVE EDIT 2026",
-      "COMPLIMENTARY SHIPPING ACROSS INDIA",
-      "USE CODE NILASA10 FOR 10% OFF"
+      "✨ NILASA GRAND FESTIVE EDIT 2026",
+      "COMPLIMENTARY EXPRESS SHIPPING ACROSS INDIA",
+      "USE CODE NILASA10 FOR EXTRA 10% OFF"
     ],
     "couponCode": "NILASA10",
     "couponDiscount": "10% OFF",
@@ -13,24 +13,24 @@
   },
   "heroBanner": {
     "isActive": true,
-    "eyebrow": "FESTIVE EDIT 2026",
-    "tagPill": "✨ Signature Indigo & Rose",
+    "eyebrow": "FESTIVE COUTURE 2026",
+    "tagPill": "👑 Royal Zari & Chanderi Silks",
     "headline": "Grace In Every Thread",
-    "description": "Thoughtfully cut Indian ethnic wear designed for quiet confidence. Handcrafted Chanderi silks, zari woven suit sets, and versatile separates.",
-    "offerBadge": "Use Code NILASA10 for 10% Off",
+    "description": "Handcrafted Indian ethnic wear tailored with timeless poise. Royal Chanderi silks, opulent zari woven Anarkalis, and artisanal suit sets.",
+    "offerBadge": "🔥 Festive Sale • Up to 40% Off",
     "primaryCta": {
-      "label": "Explore Collection →",
+      "label": "Shop Festive Edit →",
       "href": "/shop"
     },
     "secondaryCta": {
-      "label": "View Suit Sets",
+      "label": "Explore Suit Sets",
       "href": "/category/suits"
     },
-    "imageUrl": "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=1200&q=85",
+    "imageUrl": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1600&q=85",
     "featuredPiece": {
-      "title": "SIGNATURE PIECE",
-      "subtitle": "Indigo Pleat Anarkali Suit • ₹6,490",
-      "href": "/product/indigo-pleat-anarkali-suit",
+      "title": "SIGNATURE ATELIER",
+      "subtitle": "Crimson Royal Zari Anarkali • ₹6,490",
+      "href": "/shop?category=suits",
       "tag": "BESTSELLER"
     }
   },
@@ -38,84 +38,108 @@
     {
       "id": "slide-1",
       "isActive": true,
-      "eyebrow": "FESTIVE EDIT 2026",
-      "tagPill": "✨ Signature Indigo & Rose",
-      "offerBadge": "Use Code NILASA10 for 10% Off",
+      "eyebrow": "FESTIVE COUTURE 2026",
+      "tagPill": "👑 Royal Zari & Chanderi Silks",
+      "offerBadge": "🔥 Festive Sale • Up to 40% Off",
       "headline": "Grace In Every Thread",
-      "description": "Thoughtfully cut Indian ethnic wear designed for quiet confidence. Handcrafted Chanderi silks, zari woven suit sets, and versatile separates.",
+      "description": "Handcrafted Indian ethnic wear tailored with timeless poise. Royal Chanderi silks, opulent zari woven Anarkalis, and artisanal suit sets.",
       "primaryCta": {
-        "label": "Explore Collection →",
+        "label": "Shop Festive Edit →",
         "href": "/shop"
       },
       "secondaryCta": {
-        "label": "View Suit Sets",
+        "label": "Explore Suit Sets",
         "href": "/category/suits"
       },
-      "imageUrl": "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=1200&q=85",
+      "imageUrl": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1600&q=85",
       "featuredPiece": {
-        "title": "SIGNATURE PIECE",
-        "subtitle": "Indigo Pleat Anarkali Suit • ₹6,490",
-        "href": "/product/indigo-pleat-anarkali-suit",
+        "title": "SIGNATURE ATELIER",
+        "subtitle": "Crimson Royal Zari Anarkali • ₹6,490",
+        "href": "/shop?category=suits",
         "tag": "BESTSELLER"
       }
     },
     {
       "id": "slide-2",
       "isActive": true,
-      "eyebrow": "ROYAL CHANDERI COLLECTION",
-      "tagPill": "👑 Heritage Weaves",
-      "offerBadge": "Free Express Delivery Across India",
+      "eyebrow": "HERITAGE HANDLOOM WEAVES",
+      "tagPill": "🌸 Pure Chanderi & Banarasi",
+      "offerBadge": "⚡ Use Code NILASA10 for 10% Off",
       "headline": "Timeless Heritage Weaves",
-      "description": "Intricate zari motifs woven on heritage handloom looms. Designed in rich festive hues for grand occasions and quiet celebrations.",
+      "description": "Intricate gold zari motifs woven on handloom looms by master artisans. Draped in regal festive hues for weddings and celebratory soirées.",
       "primaryCta": {
-        "label": "Shop Chanderi Silks →",
+        "label": "Shop Handloom Silks →",
         "href": "/category/suits"
       },
       "secondaryCta": {
         "label": "Discover Kurtis",
         "href": "/category/kurtis"
       },
-      "imageUrl": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1200&q=85",
+      "imageUrl": "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=1600&q=85",
       "featuredPiece": {
         "title": "HERITAGE EDITION",
         "subtitle": "Rose Tissue Silk Kurta Set • ₹7,990",
-        "href": "/shop",
+        "href": "/category/suits",
         "tag": "NEW ARRIVAL"
       }
     },
     {
       "id": "slide-3",
       "isActive": true,
-      "eyebrow": "CONTEMPORARY ETHNIC",
-      "tagPill": "🌿 Everyday Luxury",
-      "offerBadge": "Limited Artisanal Batch",
-      "headline": "Modern Minimalist Poise",
-      "description": "Fluid silhouettes crafted from breathable natural fibers. Transition seamlessly from daytime desk wear to evening gatherings.",
+      "eyebrow": "ARTISANAL DUPATTAS & WEAVES",
+      "tagPill": "✨ Handcrafted Zari Border",
+      "offerBadge": "🚚 Free Express Shipping Nationwide",
+      "headline": "Heirloom Silks & Fine Weaves",
+      "description": "Exquisite handcrafted dupattas and unstitched dress materials in pure tissue, organza, and Varanasi silks. Each piece is a wearable masterpiece.",
       "primaryCta": {
-        "label": "Explore Co-Ord Sets →",
+        "label": "Explore Dupattas →",
+        "href": "/category/dupattas"
+      },
+      "secondaryCta": {
+        "label": "Unstitched Suits",
+        "href": "/category/unstitched-suits"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=1600&q=85",
+      "featuredPiece": {
+        "title": "LIMITED BATCH",
+        "subtitle": "Banarasi Tissue Zari Dupatta • ₹2,490",
+        "href": "/category/dupattas",
+        "tag": "TRENDING"
+      }
+    },
+    {
+      "id": "slide-4",
+      "isActive": true,
+      "eyebrow": "CONTEMPORARY ETHNIC CO-ORDS",
+      "tagPill": "🌿 Modern Fluid Silhouettes",
+      "offerBadge": "💎 Flat 15% Off On Co-Ords",
+      "headline": "Modern Minimalist Poise",
+      "description": "Effortlessly elegant co-ord sets crafted from breathable natural linen and modal silks. Transition seamlessly from daytime desk wear to grand evenings.",
+      "primaryCta": {
+        "label": "Shop Co-Ord Sets →",
         "href": "/category/co-ord-sets"
       },
       "secondaryCta": {
-        "label": "View All Pieces",
+        "label": "View All Collections",
         "href": "/shop"
       },
-      "imageUrl": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85",
+      "imageUrl": "https://images.unsplash.com/photo-1609357605129-26f69add5d6e?auto=format&fit=crop&w=1600&q=85",
       "featuredPiece": {
         "title": "FESTIVE FAVORITE",
-        "subtitle": "Dusty Lavender Zari Co-Ord • ₹5,450",
-        "href": "/shop",
-        "tag": "TRENDING"
+        "subtitle": "Twilight Lavender Silk Co-Ord • ₹5,450",
+        "href": "/category/co-ord-sets",
+        "tag": "HOT PICK"
       }
     }
   ],
   "promotionalOfferBanner": {
     "isActive": true,
-    "badge": "LIMITED TIME OFFER",
-    "title": "Festive Elegance: Enjoy 10% Off Your First Order",
+    "badge": "LIMITED TIME FESTIVE OFFER",
+    "title": "Festive Elegance: Flat 10% Off On Your First Order",
     "description": "Experience our artisanal handloom silhouettes. Use code NILASA10 at checkout for complimentary luxury packaging and insured nationwide express delivery.",
     "code": "NILASA10",
     "ctaLabel": "Claim Offer →",
     "ctaHref": "/shop",
-    "imageUrl": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1000&q=85"
+    "imageUrl": "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=1000&q=85"
   }
 }

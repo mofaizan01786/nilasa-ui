@@ -2,11 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { fetchPublishedProducts, fetchCategories } from "@/lib/dotnet-backend";
 import { getBannersDirect } from "@/lib/siteData";
-import { ProductCard } from "@/components/ProductCard";
+import { HeroCarousel } from "@/components/HeroCarousel";
+import { CategoryCircles } from "@/components/CategoryCircles";
+import { TabbedProductShowcase } from "@/components/TabbedProductShowcase";
+import { OccasionGrid } from "@/components/OccasionGrid";
 import { CategoryStrip } from "@/components/CategoryStrip";
 import { TrustBadges } from "@/components/TrustBadges";
 import { PromotionalBanner } from "@/components/PromotionalBanner";
-import { HeroCarousel } from "@/components/HeroCarousel";
 
 export const revalidate = 60; // Dynamic ISR cache strategy for storefront home
 
@@ -17,17 +19,27 @@ export default async function HomePage() {
   ]);
 
   const banners = getBannersDirect();
-  const featuredProducts = products.slice(0, 6);
 
   return (
     <main>
-      {/* Interactive Luxury Hero Carousel (Myntra / Ajio Luxe Standard) */}
+      {/* 1. Interactive Luxury Hero Carousel (Banners API) */}
       <HeroCarousel initialHero={banners} />
 
-      {/* Category Strip Section */}
-      <CategoryStrip categories={categories} />
+      {/* 2. Visual 1-Click Category Circles (Instant navigation) */}
+      <CategoryCircles categories={categories} />
 
-      {/* Brand Craftsmanship & Color Story Section */}
+      {/* 3. Interactive Tabbed Product Showcase (Bestsellers / New / Festive) */}
+      <TabbedProductShowcase
+        products={products}
+        categories={categories}
+        title="Most Loved & New Curations"
+        eyebrow="HANDCRAFTED ATELIER"
+      />
+
+      {/* 4. Curated Occasion & Lifestyle Merchandising Grid */}
+      <OccasionGrid />
+
+      {/* 5. Brand Craftsmanship & Color Story Section */}
       <section className="craft-section shell" style={{ margin: "40px auto 80px" }}>
         <div className="craft-card-grid">
           <div>
@@ -66,31 +78,15 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Featured SKU Grid */}
-      <section className="section shell">
-        <div className="section-head">
-          <div>
-            <span className="eyebrow eyebrow--indigo">CURATED ARRIVALS</span>
-            <h2>New Collections</h2>
-          </div>
-          <Link href="/shop" className="text-link">
-            Shop All SKUs ({products.length}) →
-          </Link>
-        </div>
+      {/* 6. Deep Category Taxonomy Catalog Grid */}
+      <CategoryStrip categories={categories} />
 
-        <div className="product-grid">
-          {featuredProducts.map((product) => (
-            <ProductCard key={product.id || product.slug} product={product} />
-          ))}
-        </div>
-      </section>
-
-      {/* Dynamic Mid-Page Promotional Offer Banner */}
+      {/* 7. Dynamic Mid-Page Promotional Offer Banner */}
       {banners?.promotionalOfferBanner && (
         <PromotionalBanner banner={banners.promotionalOfferBanner} />
       )}
 
-      {/* Brand Trust Indicators */}
+      {/* 8. Brand Trust Indicators */}
       <TrustBadges />
     </main>
   );

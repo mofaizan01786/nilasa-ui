@@ -129,7 +129,7 @@ export default function CheckoutPage() {
       setFormData((prev) => ({
         ...prev,
         name: prev.name || user.name || "",
-        email: prev.email || user.email || "",
+        email: prev.email || (user.email && !user.email.endsWith("@phone.nilasa.local") ? user.email : ""),
         phone: prev.phone || user.phone || ""
       }));
     }

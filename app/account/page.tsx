@@ -258,7 +258,11 @@ export default function AccountPage() {
                 Welcome back, {user?.name}
               </h1>
               <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "13px", color: "var(--ink-muted)", flexWrap: "wrap" }}>
-                <span>{user?.email}</span>
+                <span>
+                  {user?.email && !user.email.endsWith("@phone.nilasa.local")
+                    ? user.email
+                    : (user?.phone ? `+91 ${user.phone.replace(/\D/g, "").slice(-10)}` : "Verified Customer")}
+                </span>
                 <span>•</span>
                 <span
                   style={{
@@ -480,24 +484,50 @@ export default function AccountPage() {
                             </div>
                           </div>
 
-                          <div style={{ borderTop: "1px solid #ECEAE5", paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ borderTop: "1px solid #ECEAE5", paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                             <span style={{ fontSize: "12px", color: "var(--ink-muted)" }}>
                               {order.items?.length || 1} item{order.items?.length !== 1 ? "s" : ""} • Payment: {order.paymentMethod?.toUpperCase() || "COD"}
                             </span>
-                            <Link
-                              href={`/order-confirmation?order=${order.orderId || order.id}`}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 4,
-                                fontSize: "12px",
-                                fontWeight: 600,
-                                color: "var(--nilasa-gold)"
-                              }}
-                            >
-                              <span>View Receipt</span>
-                              <ExternalLink size={12} />
-                            </Link>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              {order.status?.toLowerCase() === "delivered" && (
+                                <Link
+                                  href={
+                                    order.items?.[0]?.productName
+                                      ? `/product/${order.items[0].productName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}?review=1#reviews`
+                                      : `/order-confirmation?order=${order.orderId || order.id}`
+                                  }
+                                  style={{
+                                    fontSize: "12px",
+                                    fontWeight: 700,
+                                    color: "var(--nilasa-indigo)",
+                                    backgroundColor: "#FAF8FD",
+                                    border: "1px solid #E4D9F0",
+                                    borderRadius: 6,
+                                    padding: "3px 10px",
+                                    textDecoration: "none",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4
+                                  }}
+                                >
+                                  <span>★ Review Product</span>
+                                </Link>
+                              )}
+                              <Link
+                                href={`/order-confirmation?order=${order.orderId || order.id}`}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  fontSize: "12px",
+                                  fontWeight: 600,
+                                  color: "var(--nilasa-gold)"
+                                }}
+                              >
+                                <span>View Receipt</span>
+                                <ExternalLink size={12} />
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       );
@@ -794,7 +824,11 @@ export default function AccountPage() {
                       <Mail size={14} />
                       <span>Email Address</span>
                     </div>
-                    <strong style={{ fontSize: "14px", color: "var(--nilasa-indigo)" }}>{user?.email}</strong>
+                    <strong style={{ fontSize: "14px", color: "var(--nilasa-indigo)" }}>
+                      {user?.email && !user.email.endsWith("@phone.nilasa.local")
+                        ? user.email
+                        : "Not linked (Phone Sign-in)"}
+                    </strong>
                   </div>
 
                   <div style={{ border: "1px solid var(--nilasa-border)", padding: "14px 16px", borderRadius: 8 }}>

@@ -429,9 +429,30 @@ export function ConfirmationClient() {
                     <strong style={{ display: "block", color: "#1A1D20", fontSize: "0.88rem" }}>
                       {item.productName}
                     </strong>
-                    <span style={{ fontSize: "0.76rem", color: "#64748B" }}>
+                    <span style={{ fontSize: "0.76rem", color: "#64748B", display: "block" }}>
                       {item.size ? `Size: ${item.size}` : ""} {item.sku ? `• SKU: ${item.sku}` : ""}
                     </span>
+                    {order.status?.toLowerCase() === "delivered" && (
+                      <div style={{ marginTop: 6 }}>
+                        <Link
+                          href={`/product/${item.productName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}#reviews`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            fontSize: "0.74rem",
+                            fontWeight: 700,
+                            color: "var(--nilasa-indigo)",
+                            backgroundColor: "rgba(198, 146, 68, 0.12)",
+                            padding: "3px 8px",
+                            borderRadius: 4,
+                            textDecoration: "none"
+                          }}
+                        >
+                          <span>★ Review This Garment</span>
+                        </Link>
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: "12px 14px", textAlign: "center", fontSize: "0.85rem", color: "#1A1D20" }}>
                     {item.quantity}

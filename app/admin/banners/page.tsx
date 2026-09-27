@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { BannersConfig, HeroSlideItem } from "@/lib/types";
 import { getBannersServerAction, saveBannersServerAction } from "@/lib/banners-actions";
@@ -31,7 +31,7 @@ export default function AdminBannersPage() {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState("");
-  const [activeTab, setActiveTab] = useState<"announcement" | "hero" | "offer">("announcement");
+  const [activeTab, setActiveTab] = useState<"announcement" | "hero" | "offer">("hero");
   const [newMessage, setNewMessage] = useState("");
   const [selectedSlideIndex, setSelectedSlideIndex] = useState<number>(0);
 
@@ -44,7 +44,6 @@ export default function AdminBannersPage() {
     try {
       const data = await getBannersServerAction();
       if (data) {
-        // Ensure heroSlides is initialized
         if (!data.heroSlides || data.heroSlides.length === 0) {
           data.heroSlides = [
             {
@@ -84,7 +83,6 @@ export default function AdminBannersPage() {
     setSaveStatus("idle");
     setStatusMessage("");
 
-    // Sync first slide with heroBanner for backward compatibility
     const currentSlides = config.heroSlides && config.heroSlides.length > 0 ? config.heroSlides : [];
     const activeFirstSlide = currentSlides[0] || config.heroBanner;
 
@@ -124,7 +122,6 @@ export default function AdminBannersPage() {
     }
   };
 
-  // ─── Hero Multi-Slide Helpers ───
   const getSlides = (): HeroSlideItem[] => {
     if (!config) return [];
     if (config.heroSlides && config.heroSlides.length > 0) return config.heroSlides;
@@ -229,7 +226,6 @@ export default function AdminBannersPage() {
     });
   };
 
-  // Announcement message helpers
   const handleAddMessage = () => {
     if (!newMessage.trim() || !config) return;
     const messages = [...(config.announcementBar.messages || []), newMessage.trim()];
@@ -251,7 +247,7 @@ export default function AdminBannersPage() {
 
   if (loading || !config) {
     return (
-      <div style={{ padding: "32px", color: "var(--admin-slate-600)" }}>
+      <div style={{ padding: "32px", color: "var(--admin-text-muted)" }}>
         <p>Loading banners & promotional offers configuration...</p>
       </div>
     );
@@ -261,7 +257,7 @@ export default function AdminBannersPage() {
   const currentSlide = slides[selectedSlideIndex] || slides[0];
 
   return (
-    <div style={{ padding: "24px", maxWidth: "1280px", margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1280, margin: "0 auto", width: "100%" }}>
       {/* Page Header */}
       <div
         style={{
@@ -269,32 +265,45 @@ export default function AdminBannersPage() {
           alignItems: "center",
           justifyContent: "space-between",
           flexWrap: "wrap",
-          gap: "16px",
-          marginBottom: "24px"
+          gap: "16px"
         }}
       >
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Sparkles size={22} color="var(--admin-accent)" />
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 9,
+                background: "var(--admin-primary)",
+                color: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              <Sparkles size={18} />
+            </div>
             <h1
               style={{
-                fontSize: "20px",
-                fontWeight: 700,
-                color: "var(--admin-ink)",
+                fontSize: "22px",
+                fontWeight: 600,
+                fontFamily: "var(--font-display)",
+                color: "var(--admin-text-main)",
                 margin: 0
               }}
             >
-              Dynamic Banners & Hero Carousel Manager
+              Banners & Hero Carousel Manager
             </h1>
           </div>
           <p
             style={{
-              fontSize: "13px",
-              color: "var(--admin-slate-600)",
+              fontSize: "12.5px",
+              color: "var(--admin-text-muted)",
               margin: "4px 0 0"
             }}
           >
-            Manage multi-slide hero carousel banners, top announcement bar, and promotional offer cards with live instant sync.
+            Manage multi-slide hero carousel banners, top announcement bar, and promotional offers with live instant sync.
           </p>
         </div>
 
@@ -306,15 +315,16 @@ export default function AdminBannersPage() {
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            padding: "10px 22px",
-            borderRadius: "6px",
+            padding: "9px 22px",
+            borderRadius: 999,
             border: "none",
-            background: "#B87078",
+            background: "var(--admin-primary)",
             color: "#FFFFFF",
             fontSize: "13px",
             fontWeight: 700,
             cursor: saving ? "not-allowed" : "pointer",
-            boxShadow: "0 2px 8px rgba(184, 112, 120, 0.3)"
+            boxShadow: "0 2px 8px var(--admin-primary-glow)",
+            transition: "all 0.15s ease"
           }}
         >
           <Save size={15} />
@@ -327,15 +337,14 @@ export default function AdminBannersPage() {
         <div
           style={{
             padding: "12px 16px",
-            borderRadius: "8px",
-            marginBottom: "20px",
+            borderRadius: "12px",
             display: "flex",
             alignItems: "center",
             gap: "10px",
             fontSize: "13px",
-            background: saveStatus === "success" ? "#ECFDF5" : "#FEF2F2",
-            color: saveStatus === "success" ? "#065F46" : "#991B1B",
-            border: saveStatus === "success" ? "1px solid #A7F3D0" : "1px solid #FECACA"
+            background: saveStatus === "success" ? "#E8F5E9" : "#FDE8E8",
+            color: saveStatus === "success" ? "#1E6B24" : "#9B2C2C",
+            border: saveStatus === "success" ? "1px solid #C8E6C9" : "1px solid #FED7D7"
           }}
         >
           {saveStatus === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
@@ -343,36 +352,8 @@ export default function AdminBannersPage() {
         </div>
       )}
 
-      {/* Navigation Tabs for Banners */}
-      <div
-        style={{
-          display: "flex",
-          gap: "8px",
-          borderBottom: "1px solid var(--admin-slate-200)",
-          marginBottom: "24px"
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setActiveTab("announcement")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 16px",
-            border: "none",
-            borderBottom: activeTab === "announcement" ? "2px solid #B87078" : "2px solid transparent",
-            background: "transparent",
-            color: activeTab === "announcement" ? "#B87078" : "var(--admin-slate-600)",
-            fontWeight: activeTab === "announcement" ? 700 : 500,
-            fontSize: "13px",
-            cursor: "pointer"
-          }}
-        >
-          <Megaphone size={15} />
-          <span>1. Top Announcement Bar</span>
-        </button>
-
+      {/* Responsive Tabs Strip */}
+      <div className="admin-tabs-scroll-wrapper">
         <button
           type="button"
           onClick={() => setActiveTab("hero")}
@@ -382,16 +363,39 @@ export default function AdminBannersPage() {
             gap: "8px",
             padding: "10px 16px",
             border: "none",
-            borderBottom: activeTab === "hero" ? "2px solid #B87078" : "2px solid transparent",
+            borderBottom: activeTab === "hero" ? "2.5px solid var(--admin-primary)" : "2.5px solid transparent",
             background: "transparent",
-            color: activeTab === "hero" ? "#B87078" : "var(--admin-slate-600)",
+            color: activeTab === "hero" ? "var(--admin-primary)" : "var(--admin-text-muted)",
             fontWeight: activeTab === "hero" ? 700 : 500,
             fontSize: "13px",
-            cursor: "pointer"
+            cursor: "pointer",
+            whiteSpace: "nowrap"
           }}
         >
           <ImageIcon size={15} />
-          <span>2. Hero Carousel Slides ({slides.length})</span>
+          <span>1. Hero Carousel Slides ({slides.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("announcement")}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "10px 16px",
+            border: "none",
+            borderBottom: activeTab === "announcement" ? "2.5px solid var(--admin-primary)" : "2.5px solid transparent",
+            background: "transparent",
+            color: activeTab === "announcement" ? "var(--admin-primary)" : "var(--admin-text-muted)",
+            fontWeight: activeTab === "announcement" ? 700 : 500,
+            fontSize: "13px",
+            cursor: "pointer",
+            whiteSpace: "nowrap"
+          }}
+        >
+          <Megaphone size={15} />
+          <span>2. Top Announcement Bar</span>
         </button>
 
         <button
@@ -403,12 +407,13 @@ export default function AdminBannersPage() {
             gap: "8px",
             padding: "10px 16px",
             border: "none",
-            borderBottom: activeTab === "offer" ? "2px solid #B87078" : "2px solid transparent",
+            borderBottom: activeTab === "offer" ? "2.5px solid var(--admin-primary)" : "2.5px solid transparent",
             background: "transparent",
-            color: activeTab === "offer" ? "#B87078" : "var(--admin-slate-600)",
+            color: activeTab === "offer" ? "var(--admin-primary)" : "var(--admin-text-muted)",
             fontWeight: activeTab === "offer" ? 700 : 500,
             fontSize: "13px",
-            cursor: "pointer"
+            cursor: "pointer",
+            whiteSpace: "nowrap"
           }}
         >
           <Tag size={15} />
@@ -416,214 +421,17 @@ export default function AdminBannersPage() {
         </button>
       </div>
 
-      {/* TAB 1: Announcement Bar Settings */}
-      {activeTab === "announcement" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "24px", alignItems: "flex-start" }}>
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid var(--admin-slate-200)",
-              borderRadius: "10px",
-              padding: "24px"
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: "20px",
-                borderBottom: "1px solid var(--admin-slate-200)",
-                paddingBottom: "12px"
-              }}
-            >
-              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--admin-ink)", margin: 0 }}>
-                Top Announcement Bar Config
-              </h3>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={config.announcementBar.isActive}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      announcementBar: { ...config.announcementBar, isActive: e.target.checked }
-                    })
-                  }
-                />
-                <span>Enable Bar</span>
-              </label>
-            </div>
-
-            {/* Messages List */}
-            <div style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "8px" }}>
-                Announcement Messages
-              </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }}>
-                {config.announcementBar.messages.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "8px 12px",
-                      background: "#F8FAFC",
-                      borderRadius: "6px",
-                      border: "1px solid var(--admin-slate-200)",
-                      fontSize: "12px"
-                    }}
-                  >
-                    <span>{msg}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteMessage(idx)}
-                      style={{ background: "none", border: "none", color: "#EF4444", cursor: "pointer", padding: "2px" }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add Message Form */}
-              <div style={{ display: "flex", gap: "8px" }}>
-                <input
-                  type="text"
-                  placeholder="Add new announcement message (e.g. FREE SHIPPING OVER ₹2,999)"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
-                    fontSize: "12px"
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleAddMessage}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
-                    background: "#FFFFFF",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: "pointer"
-                  }}
-                >
-                  <Plus size={13} />
-                </button>
-              </div>
-            </div>
-
-            {/* Coupon Settings */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
-                  Promo Coupon Code
-                </label>
-                <input
-                  type="text"
-                  value={config.announcementBar.couponCode || ""}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      announcementBar: { ...config.announcementBar, couponCode: e.target.value.toUpperCase() }
-                    })
-                  }
-                  placeholder="e.g. NILASA10"
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
-                    fontSize: "12px"
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
-                  Discount Text
-                </label>
-                <input
-                  type="text"
-                  value={config.announcementBar.couponDiscount || ""}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      announcementBar: { ...config.announcementBar, couponDiscount: e.target.value }
-                    })
-                  }
-                  placeholder="e.g. 10% OFF"
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
-                    fontSize: "12px"
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Live Preview Box */}
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid var(--admin-slate-200)",
-              borderRadius: "10px",
-              padding: "20px"
-            }}
-          >
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--admin-slate-600)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "12px" }}>
-              Live Storefront Preview
-            </span>
-            <div
-              style={{
-                background: "#B88088",
-                color: "#F8F0E8",
-                padding: "8px 14px",
-                borderRadius: "6px",
-                fontSize: "11px",
-                fontFamily: "var(--font-mono)",
-                textAlign: "center",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                border: "1px solid rgba(255, 255, 255, 0.2)"
-              }}
-            >
-              {config.announcementBar.messages.join(" • ")}
-              {config.announcementBar.couponCode && ` • USE CODE ${config.announcementBar.couponCode} FOR ${config.announcementBar.couponDiscount || ""}`}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: Multi-Slide Luxury Hero Carousel Settings */}
+      {/* TAB 1: Multi-Slide Luxury Hero Carousel Settings */}
       {activeTab === "hero" && (
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {/* Top Multi-Slide Order & Selector Strip */}
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid var(--admin-slate-200)",
-              borderRadius: "10px",
-              padding: "16px 20px",
-              marginBottom: "24px"
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <div className="admin-luxury-card" style={{ padding: "16px 20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: "12px" }}>
               <div>
-                <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--admin-ink)" }}>
+                <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--admin-text-main)" }}>
                   Carousel Slide Order (Top ➔ Bottom Sequence)
                 </span>
-                <p style={{ fontSize: "12px", color: "var(--admin-slate-600)", margin: "2px 0 0" }}>
+                <p style={{ fontSize: "11.5px", color: "var(--admin-text-muted)", margin: "2px 0 0" }}>
                   Add multiple hero banners, reorder them up/down to set the exact storefront display sequence.
                 </p>
               </div>
@@ -635,9 +443,9 @@ export default function AdminBannersPage() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  background: "#B87078",
+                  padding: "7px 14px",
+                  borderRadius: 999,
+                  background: "var(--admin-primary)",
                   color: "#FFFFFF",
                   border: "none",
                   fontSize: "12px",
@@ -650,8 +458,8 @@ export default function AdminBannersPage() {
               </button>
             </div>
 
-            {/* Slide Cards List */}
-            <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(280px, 1fr))`, gap: "12px" }}>
+            {/* Slide Cards List (Responsive Grid) */}
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(240px, 1fr))`, gap: "10px" }}>
               {slides.map((s, idx) => (
                 <div
                   key={s.id || idx}
@@ -660,26 +468,26 @@ export default function AdminBannersPage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    padding: "10px 14px",
-                    borderRadius: "8px",
-                    background: selectedSlideIndex === idx ? "#F8E8E8" : "#F8FAFC",
-                    border: selectedSlideIndex === idx ? "2px solid #B87078" : "1px solid var(--admin-slate-200)",
+                    padding: "9px 12px",
+                    borderRadius: "12px",
+                    background: selectedSlideIndex === idx ? "var(--admin-primary-soft)" : "var(--admin-surface-bg)",
+                    border: selectedSlideIndex === idx ? "1.5px solid var(--admin-primary)" : "1px solid var(--admin-border-subtle)",
                     cursor: "pointer",
-                    transition: "all 0.2s ease"
+                    transition: "all 0.15s ease"
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
                     <span
                       style={{
-                        width: "24px",
-                        height: "24px",
+                        width: "22px",
+                        height: "22px",
                         borderRadius: "50%",
-                        background: selectedSlideIndex === idx ? "#B87078" : "#E2E8F0",
-                        color: selectedSlideIndex === idx ? "#FFFFFF" : "var(--admin-slate-600)",
+                        background: selectedSlideIndex === idx ? "var(--admin-primary)" : "var(--admin-border-subtle)",
+                        color: selectedSlideIndex === idx ? "#FFFFFF" : "var(--admin-text-muted)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "11px",
+                        fontSize: "10.5px",
                         fontWeight: 700,
                         flexShrink: 0
                       }}
@@ -687,47 +495,47 @@ export default function AdminBannersPage() {
                       {idx + 1}
                     </span>
                     <div style={{ minWidth: 0 }}>
-                      <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--admin-ink)", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--admin-text-main)", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {s.headline || `Slide ${idx + 1}`}
                       </span>
-                      <span style={{ fontSize: "10px", color: "var(--admin-slate-600)", display: "block" }}>
+                      <span style={{ fontSize: "10px", color: "var(--admin-text-muted)", display: "block" }}>
                         {s.eyebrow || "FESTIVE EDIT"}
                       </span>
                     </div>
                   </div>
 
-                  {/* Reorder Buttons (Move Up / Move Down) */}
+                  {/* Reorder Buttons */}
                   <div style={{ display: "flex", alignItems: "center", gap: "2px" }} onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
-                      title="Move Up (Towards Top)"
+                      title="Move Up"
                       disabled={idx === 0}
                       onClick={() => handleMoveSlideUp(idx)}
                       style={{
-                        padding: "4px",
+                        padding: "3px",
                         background: "none",
                         border: "none",
-                        color: idx === 0 ? "#CBD5E1" : "#64748B",
+                        color: idx === 0 ? "var(--admin-border-subtle)" : "var(--admin-text-muted)",
                         cursor: idx === 0 ? "not-allowed" : "pointer"
                       }}
                     >
-                      <ChevronUp size={16} />
+                      <ChevronUp size={15} />
                     </button>
 
                     <button
                       type="button"
-                      title="Move Down (Towards Bottom)"
+                      title="Move Down"
                       disabled={idx === slides.length - 1}
                       onClick={() => handleMoveSlideDown(idx)}
                       style={{
-                        padding: "4px",
+                        padding: "3px",
                         background: "none",
                         border: "none",
-                        color: idx === slides.length - 1 ? "#CBD5E1" : "#64748B",
+                        color: idx === slides.length - 1 ? "var(--admin-border-subtle)" : "var(--admin-text-muted)",
                         cursor: idx === slides.length - 1 ? "not-allowed" : "pointer"
                       }}
                     >
-                      <ChevronDown size={16} />
+                      <ChevronDown size={15} />
                     </button>
 
                     {slides.length > 1 && (
@@ -736,15 +544,15 @@ export default function AdminBannersPage() {
                         title="Delete Slide"
                         onClick={() => handleDeleteSlide(idx)}
                         style={{
-                          padding: "4px",
+                          padding: "3px",
                           background: "none",
                           border: "none",
-                          color: "#EF4444",
+                          color: "#E05353",
                           cursor: "pointer",
-                          marginLeft: "4px"
+                          marginLeft: "2px"
                         }}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     )}
                   </div>
@@ -753,32 +561,24 @@ export default function AdminBannersPage() {
             </div>
           </div>
 
-          {/* Form & Live Preview Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "24px", alignItems: "flex-start" }}>
+          {/* Form & Live Preview 2-Column Split (Responsive via CSS) */}
+          <div className="admin-form-preview-grid">
             {/* Slide Edit Form */}
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid var(--admin-slate-200)",
-                borderRadius: "10px",
-                padding: "24px"
-              }}
-            >
+            <div className="admin-luxury-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  marginBottom: "20px",
-                  borderBottom: "1px solid var(--admin-slate-200)",
+                  borderBottom: "1px solid var(--admin-border-subtle)",
                   paddingBottom: "12px"
                 }}
               >
                 <div>
-                  <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--admin-ink)", margin: 0 }}>
+                  <h3 style={{ fontSize: "15px", fontWeight: 700, fontFamily: "var(--font-display)", color: "var(--admin-text-main)", margin: 0 }}>
                     Editing Slide #{selectedSlideIndex + 1}
                   </h3>
-                  <span style={{ fontSize: "11px", color: "#B87078", fontWeight: 600 }}>
+                  <span style={{ fontSize: "11px", color: "var(--admin-primary)", fontWeight: 600 }}>
                     {currentSlide.headline}
                   </span>
                 </div>
@@ -793,10 +593,10 @@ export default function AdminBannersPage() {
                 </label>
               </div>
 
-              {/* Badges & Tags */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+              {/* Badges & Tags Grid */}
+              <div className="admin-form-grid-2">
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                     Gold Tag (e.g. FESTIVE EDIT 2026)
                   </label>
                   <input
@@ -806,15 +606,18 @@ export default function AdminBannersPage() {
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      borderRadius: "6px",
-                      border: "1px solid var(--admin-slate-300)",
-                      fontSize: "12px"
+                      borderRadius: "8px",
+                      border: "1px solid var(--admin-border-subtle)",
+                      background: "var(--admin-surface-bg)",
+                      color: "var(--admin-text-main)",
+                      fontSize: "12px",
+                      outline: "none"
                     }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                     Offer Badge Pill (e.g. USE CODE NILASA10)
                   </label>
                   <input
@@ -825,17 +628,20 @@ export default function AdminBannersPage() {
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      borderRadius: "6px",
-                      border: "1px solid var(--admin-slate-300)",
-                      fontSize: "12px"
+                      borderRadius: "8px",
+                      border: "1px solid var(--admin-border-subtle)",
+                      background: "var(--admin-surface-bg)",
+                      color: "var(--admin-text-main)",
+                      fontSize: "12px",
+                      outline: "none"
                     }}
                   />
                 </div>
               </div>
 
               {/* Headline */}
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                   Main Headline
                 </label>
                 <input
@@ -845,17 +651,20 @@ export default function AdminBannersPage() {
                   style={{
                     width: "100%",
                     padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
                     fontSize: "13px",
-                    fontWeight: 600
+                    fontWeight: 600,
+                    outline: "none"
                   }}
                 />
               </div>
 
               {/* Description */}
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                   Hero Description
                 </label>
                 <textarea
@@ -865,54 +674,57 @@ export default function AdminBannersPage() {
                   style={{
                     width: "100%",
                     padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
-                    fontSize: "12px"
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
+                    fontSize: "12px",
+                    outline: "none"
                   }}
                 />
               </div>
 
               {/* CTAs */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+              <div className="admin-form-grid-2">
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
-                    Primary CTA (Button & Link)
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
+                    Primary CTA (Label & Link)
                   </label>
                   <div style={{ display: "flex", gap: "6px" }}>
                     <input
                       type="text"
                       value={currentSlide.primaryCta?.label || ""}
-                      placeholder="Label (e.g. Explore Collection →)"
+                      placeholder="Label"
                       onChange={(e) =>
                         handleUpdateCurrentSlide({
                           primaryCta: { ...currentSlide.primaryCta, label: e.target.value }
                         })
                       }
-                      style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid var(--admin-slate-300)", fontSize: "12px" }}
+                      style={{ flex: 1, padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--admin-border-subtle)", background: "var(--admin-surface-bg)", color: "var(--admin-text-main)", fontSize: "12px" }}
                     />
                     <input
                       type="text"
                       value={currentSlide.primaryCta?.href || ""}
-                      placeholder="Link (e.g. /shop)"
+                      placeholder="/shop"
                       onChange={(e) =>
                         handleUpdateCurrentSlide({
                           primaryCta: { ...currentSlide.primaryCta, href: e.target.value }
                         })
                       }
-                      style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid var(--admin-slate-300)", fontSize: "12px" }}
+                      style={{ flex: 1, padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--admin-border-subtle)", background: "var(--admin-surface-bg)", color: "var(--admin-text-main)", fontSize: "12px" }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
-                    Secondary CTA (Button & Link)
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
+                    Secondary CTA (Label & Link)
                   </label>
                   <div style={{ display: "flex", gap: "6px" }}>
                     <input
                       type="text"
                       value={currentSlide.secondaryCta?.label || ""}
-                      placeholder="Label (e.g. View Suit Sets)"
+                      placeholder="Label"
                       onChange={(e) =>
                         handleUpdateCurrentSlide({
                           secondaryCta: {
@@ -921,12 +733,12 @@ export default function AdminBannersPage() {
                           }
                         })
                       }
-                      style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid var(--admin-slate-300)", fontSize: "12px" }}
+                      style={{ flex: 1, padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--admin-border-subtle)", background: "var(--admin-surface-bg)", color: "var(--admin-text-main)", fontSize: "12px" }}
                     />
                     <input
                       type="text"
                       value={currentSlide.secondaryCta?.href || ""}
-                      placeholder="Link (e.g. /category/suits)"
+                      placeholder="/category/suits"
                       onChange={(e) =>
                         handleUpdateCurrentSlide({
                           secondaryCta: {
@@ -935,15 +747,15 @@ export default function AdminBannersPage() {
                           }
                         })
                       }
-                      style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid var(--admin-slate-300)", fontSize: "12px" }}
+                      style={{ flex: 1, padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--admin-border-subtle)", background: "var(--admin-surface-bg)", color: "var(--admin-text-main)", fontSize: "12px" }}
                     />
                   </div>
                 </div>
               </div>
 
               {/* Image URL */}
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                   Hero Showcase Image URL
                 </label>
                 <input
@@ -953,8 +765,10 @@ export default function AdminBannersPage() {
                   style={{
                     width: "100%",
                     padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
                     fontSize: "12px"
                   }}
                 />
@@ -963,23 +777,23 @@ export default function AdminBannersPage() {
               {/* Featured Showcase Piece Card */}
               <div
                 style={{
-                  borderTop: "1px solid var(--admin-slate-200)",
-                  paddingTop: "16px",
-                  marginTop: "16px"
+                  borderTop: "1px solid var(--admin-border-subtle)",
+                  paddingTop: "14px",
+                  marginTop: "6px"
                 }}
               >
-                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--admin-ink)", display: "block", marginBottom: "12px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--admin-text-main)", display: "block", marginBottom: "10px" }}>
                   Floating Showcase Product Card
                 </span>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                <div className="admin-form-grid-2" style={{ marginBottom: "10px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--admin-slate-600)", marginBottom: "4px" }}>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "4px" }}>
                       Card Eyebrow
                     </label>
                     <input
                       type="text"
                       value={currentSlide.featuredPiece?.title || ""}
-                      placeholder="e.g. SIGNATURE PIECE"
+                      placeholder="SIGNATURE PIECE"
                       onChange={(e) =>
                         handleUpdateCurrentSlide({
                           featuredPiece: {
@@ -990,18 +804,18 @@ export default function AdminBannersPage() {
                           }
                         })
                       }
-                      style={{ width: "100%", padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--admin-slate-300)", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "8px", border: "1px solid var(--admin-border-subtle)", background: "var(--admin-surface-bg)", color: "var(--admin-text-main)", fontSize: "12px" }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--admin-slate-600)", marginBottom: "4px" }}>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "4px" }}>
                       Top Trending Badge
                     </label>
                     <input
                       type="text"
                       value={currentSlide.featuredPiece?.tag || "BESTSELLER"}
-                      placeholder="e.g. BESTSELLER / NEW ARRIVAL"
+                      placeholder="BESTSELLER"
                       onChange={(e) =>
                         handleUpdateCurrentSlide({
                           featuredPiece: {
@@ -1012,20 +826,20 @@ export default function AdminBannersPage() {
                           }
                         })
                       }
-                      style={{ width: "100%", padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--admin-slate-300)", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "8px", border: "1px solid var(--admin-border-subtle)", background: "var(--admin-surface-bg)", color: "var(--admin-text-main)", fontSize: "12px" }}
                     />
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "12px" }}>
+                <div className="admin-form-grid-2">
                   <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--admin-slate-600)", marginBottom: "4px" }}>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "4px" }}>
                       Product Title & Price
                     </label>
                     <input
                       type="text"
                       value={currentSlide.featuredPiece?.subtitle || ""}
-                      placeholder="e.g. Indigo Pleat Anarkali Suit • ₹6,490"
+                      placeholder="Indigo Pleat Anarkali Suit • ₹6,490"
                       onChange={(e) =>
                         handleUpdateCurrentSlide({
                           featuredPiece: {
@@ -1036,18 +850,18 @@ export default function AdminBannersPage() {
                           }
                         })
                       }
-                      style={{ width: "100%", padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--admin-slate-300)", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "8px", border: "1px solid var(--admin-border-subtle)", background: "var(--admin-surface-bg)", color: "var(--admin-text-main)", fontSize: "12px" }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--admin-slate-600)", marginBottom: "4px" }}>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "4px" }}>
                       Product Link
                     </label>
                     <input
                       type="text"
                       value={currentSlide.featuredPiece?.href || ""}
-                      placeholder="e.g. /product/indigo-pleat-anarkali-suit"
+                      placeholder="/product/indigo-pleat-anarkali-suit"
                       onChange={(e) =>
                         handleUpdateCurrentSlide({
                           featuredPiece: {
@@ -1058,7 +872,7 @@ export default function AdminBannersPage() {
                           }
                         })
                       }
-                      style={{ width: "100%", padding: "7px 10px", borderRadius: "4px", border: "1px solid var(--admin-slate-300)", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "8px", border: "1px solid var(--admin-border-subtle)", background: "var(--admin-surface-bg)", color: "var(--admin-text-main)", fontSize: "12px" }}
                     />
                   </div>
                 </div>
@@ -1066,19 +880,10 @@ export default function AdminBannersPage() {
             </div>
 
             {/* Luxury Live Hero Preview Panel */}
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid var(--admin-slate-200)",
-                borderRadius: "10px",
-                padding: "20px",
-                position: "sticky",
-                top: "20px"
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--admin-slate-600)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Live Preview: Slide #{selectedSlideIndex + 1} of {slides.length}
+            <div className="admin-luxury-card" style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: "84px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--admin-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Live Storefront Preview
                 </span>
 
                 <div style={{ display: "flex", gap: "4px" }}>
@@ -1088,10 +893,10 @@ export default function AdminBannersPage() {
                       type="button"
                       onClick={() => setSelectedSlideIndex(idx)}
                       style={{
-                        width: idx === selectedSlideIndex ? "20px" : "8px",
-                        height: "8px",
+                        width: idx === selectedSlideIndex ? "18px" : "7px",
+                        height: "7px",
                         borderRadius: "999px",
-                        background: idx === selectedSlideIndex ? "#B87078" : "#E2E8F0",
+                        background: idx === selectedSlideIndex ? "var(--admin-primary)" : "var(--admin-border-subtle)",
                         border: "none",
                         cursor: "pointer",
                         transition: "all 0.2s ease"
@@ -1104,21 +909,21 @@ export default function AdminBannersPage() {
               {/* Render Storefront Hero Scaled Preview */}
               <div
                 style={{
-                  background: "linear-gradient(135deg, #F8E8E8 0%, #F5DFE1 50%, #F8E8E8 100%)",
-                  borderRadius: "12px",
-                  padding: "20px",
-                  border: "1px solid #E8D0D2",
-                  boxShadow: "0 4px 16px rgba(104, 56, 64, 0.08)"
+                  background: "linear-gradient(135deg, var(--admin-primary-soft) 0%, var(--admin-surface-bg) 100%)",
+                  borderRadius: "14px",
+                  padding: "18px",
+                  border: "1px solid var(--admin-border-subtle)",
+                  boxShadow: "var(--admin-shadow-sm)"
                 }}
               >
                 {/* Badges */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginBottom: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
                   <span
                     style={{
-                      background: "#FFFFFF",
-                      border: "1px solid #B8894F",
-                      color: "#B8894F",
-                      padding: "3px 10px",
+                      background: "var(--admin-card-bg)",
+                      border: "1px solid var(--admin-accent-gold)",
+                      color: "var(--admin-accent-gold)",
+                      padding: "2px 8px",
                       borderRadius: "999px",
                       fontSize: "9px",
                       fontWeight: 700,
@@ -1132,9 +937,9 @@ export default function AdminBannersPage() {
                   {currentSlide.offerBadge && (
                     <span
                       style={{
-                        background: "#B87078",
-                        color: "#F8F0E8",
-                        padding: "3px 10px",
+                        background: "var(--admin-primary)",
+                        color: "#FFFFFF",
+                        padding: "2px 8px",
                         borderRadius: "999px",
                         fontSize: "9px",
                         fontWeight: 600
@@ -1149,10 +954,10 @@ export default function AdminBannersPage() {
                 <h3
                   style={{
                     fontFamily: "var(--font-display)",
-                    fontSize: "22px",
+                    fontSize: "20px",
                     fontWeight: 600,
-                    color: "#683840",
-                    margin: "0 0 8px",
+                    color: "var(--admin-text-main)",
+                    margin: "0 0 6px",
                     lineHeight: 1.15
                   }}
                 >
@@ -1163,23 +968,23 @@ export default function AdminBannersPage() {
                 <p
                   style={{
                     fontSize: "11px",
-                    color: "#8A5A62",
-                    margin: "0 0 14px",
-                    lineHeight: 1.5
+                    color: "var(--admin-text-muted)",
+                    margin: "0 0 12px",
+                    lineHeight: 1.4
                   }}
                 >
                   {currentSlide.description}
                 </p>
 
                 {/* CTA Buttons */}
-                <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "12px" }}>
                   <span
                     style={{
-                      background: "#B87078",
-                      color: "#F8F0E8",
-                      padding: "8px 14px",
+                      background: "var(--admin-primary)",
+                      color: "#FFFFFF",
+                      padding: "6px 12px",
                       borderRadius: "6px",
-                      fontSize: "11px",
+                      fontSize: "10.5px",
                       fontWeight: 700
                     }}
                   >
@@ -1188,11 +993,11 @@ export default function AdminBannersPage() {
                   <span
                     style={{
                       background: "transparent",
-                      color: "#B87078",
-                      border: "1px solid #B87078",
-                      padding: "8px 14px",
+                      color: "var(--admin-primary)",
+                      border: "1px solid var(--admin-primary)",
+                      padding: "6px 12px",
                       borderRadius: "6px",
-                      fontSize: "11px",
+                      fontSize: "10.5px",
                       fontWeight: 600
                     }}
                   >
@@ -1200,30 +1005,8 @@ export default function AdminBannersPage() {
                   </span>
                 </div>
 
-                {/* Trust Strip */}
-                <div
-                  style={{
-                    background: "rgba(255, 255, 255, 0.8)",
-                    border: "1px solid #E8D0D2",
-                    borderRadius: "999px",
-                    padding: "5px 12px",
-                    fontSize: "9px",
-                    color: "#683840",
-                    fontWeight: 600,
-                    display: "inline-flex",
-                    gap: "8px",
-                    marginBottom: "16px"
-                  }}
-                >
-                  <span>★ 4.9/5 Rating</span>
-                  <span>•</span>
-                  <span>100% Pure Silk</span>
-                  <span>•</span>
-                  <span>Free Express Delivery</span>
-                </div>
-
                 {/* Media Card Preview */}
-                <div style={{ position: "relative", height: "200px", borderRadius: "14px", overflow: "hidden", border: "2px solid #FFFFFF", boxShadow: "0 8px 24px rgba(104, 56, 64, 0.12)" }}>
+                <div style={{ position: "relative", height: "180px", borderRadius: "12px", overflow: "hidden", border: "2px solid #FFFFFF", boxShadow: "0 4px 14px rgba(0,0,0,0.08)" }}>
                   <Image
                     src={currentSlide.imageUrl || "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=800&q=80"}
                     alt="Hero Preview"
@@ -1238,8 +1021,8 @@ export default function AdminBannersPage() {
                         position: "absolute",
                         top: "8px",
                         right: "8px",
-                        background: "#683840",
-                        color: "#F8F0E8",
+                        background: "var(--admin-primary)",
+                        color: "#FFFFFF",
                         padding: "2px 8px",
                         borderRadius: "999px",
                         fontSize: "8px",
@@ -1260,7 +1043,7 @@ export default function AdminBannersPage() {
                         left: "8px",
                         right: "8px",
                         background: "rgba(255, 255, 255, 0.94)",
-                        border: "1px solid rgba(184, 137, 79, 0.4)",
+                        border: "1px solid rgba(198, 146, 68, 0.4)",
                         padding: "6px 10px",
                         borderRadius: "8px",
                         display: "flex",
@@ -1269,14 +1052,14 @@ export default function AdminBannersPage() {
                       }}
                     >
                       <div>
-                        <span style={{ fontSize: "7px", fontWeight: 700, color: "#B8894F", letterSpacing: "0.08em", display: "block" }}>
+                        <span style={{ fontSize: "7px", fontWeight: 700, color: "#C69244", letterSpacing: "0.08em", display: "block" }}>
                           {currentSlide.featuredPiece.title}
                         </span>
-                        <span style={{ fontSize: "9px", fontWeight: 600, color: "#683840", display: "block" }}>
+                        <span style={{ fontSize: "9px", fontWeight: 600, color: "#2C1E20", display: "block" }}>
                           {currentSlide.featuredPiece.subtitle}
                         </span>
                       </div>
-                      <span style={{ background: "#B87078", color: "#F8F0E8", padding: "2px 6px", borderRadius: "4px", fontSize: "8px" }}>
+                      <span style={{ background: "var(--admin-primary)", color: "#FFFFFF", padding: "2px 6px", borderRadius: "4px", fontSize: "8px" }}>
                         →
                       </span>
                     </div>
@@ -1288,31 +1071,205 @@ export default function AdminBannersPage() {
         </div>
       )}
 
-      {/* TAB 3: Mid-Page Promotional Offer Banner Settings */}
-      {activeTab === "offer" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "24px", alignItems: "flex-start" }}>
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid var(--admin-slate-200)",
-              borderRadius: "10px",
-              padding: "24px"
-            }}
-          >
+      {/* TAB 2: Announcement Bar Settings */}
+      {activeTab === "announcement" && (
+        <div className="admin-form-preview-grid">
+          <div className="admin-luxury-card" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                marginBottom: "20px",
-                borderBottom: "1px solid var(--admin-slate-200)",
+                borderBottom: "1px solid var(--admin-border-subtle)",
                 paddingBottom: "12px"
               }}
             >
-              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--admin-ink)", margin: 0 }}>
+              <h3 style={{ fontSize: "15px", fontWeight: 700, fontFamily: "var(--font-display)", color: "var(--admin-text-main)", margin: 0 }}>
+                Top Announcement Bar Config
+              </h3>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked={config.announcementBar.isActive}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      announcementBar: { ...config.announcementBar, isActive: e.target.checked }
+                    })
+                  }
+                />
+                <span>Enable Bar</span>
+              </label>
+            </div>
+
+            {/* Messages List */}
+            <div>
+              <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "8px" }}>
+                Announcement Messages
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }}>
+                {config.announcementBar.messages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 12px",
+                      background: "var(--admin-surface-bg)",
+                      borderRadius: "8px",
+                      border: "1px solid var(--admin-border-subtle)",
+                      fontSize: "12px"
+                    }}
+                  >
+                    <span>{msg}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMessage(idx)}
+                      style={{ background: "none", border: "none", color: "#E05353", cursor: "pointer", padding: "2px" }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add Message Form */}
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input
+                  type="text"
+                  placeholder="Add new announcement message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
+                    fontSize: "12px",
+                    outline: "none"
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddMessage}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-card-bg)",
+                    color: "var(--admin-text-main)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Coupon Settings */}
+            <div className="admin-form-grid-2">
+              <div>
+                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
+                  Promo Coupon Code
+                </label>
+                <input
+                  type="text"
+                  value={config.announcementBar.couponCode || ""}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      announcementBar: { ...config.announcementBar, couponCode: e.target.value.toUpperCase() }
+                    })
+                  }
+                  placeholder="NILASA10"
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
+                    fontSize: "12px"
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
+                  Discount Text
+                </label>
+                <input
+                  type="text"
+                  value={config.announcementBar.couponDiscount || ""}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      announcementBar: { ...config.announcementBar, couponDiscount: e.target.value }
+                    })
+                  }
+                  placeholder="10% OFF"
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
+                    fontSize: "12px"
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Live Preview Box */}
+          <div className="admin-luxury-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--admin-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Live Storefront Preview
+            </span>
+            <div
+              style={{
+                background: "var(--admin-primary)",
+                color: "#FFFFFF",
+                padding: "9px 14px",
+                borderRadius: "8px",
+                fontSize: "11px",
+                fontFamily: "var(--font-mono)",
+                textAlign: "center",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                boxShadow: "var(--admin-shadow-sm)"
+              }}
+            >
+              {config.announcementBar.messages.join(" • ")}
+              {config.announcementBar.couponCode && ` • USE CODE ${config.announcementBar.couponCode} FOR ${config.announcementBar.couponDiscount || ""}`}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: Mid-Page Promotional Offer Banner Settings */}
+      {activeTab === "offer" && (
+        <div className="admin-form-preview-grid">
+          <div className="admin-luxury-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottom: "1px solid var(--admin-border-subtle)",
+                paddingBottom: "12px"
+              }}
+            >
+              <h3 style={{ fontSize: "15px", fontWeight: 700, fontFamily: "var(--font-display)", color: "var(--admin-text-main)", margin: 0 }}>
                 Mid-Page Promotional Offer Banner
               </h3>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
                 <input
                   type="checkbox"
                   checked={config.promotionalOfferBanner.isActive}
@@ -1327,9 +1284,9 @@ export default function AdminBannersPage() {
               </label>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                   Badge Tag
                 </label>
                 <input
@@ -1344,15 +1301,17 @@ export default function AdminBannersPage() {
                   style={{
                     width: "100%",
                     padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
                     fontSize: "12px"
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                   Coupon Code
                 </label>
                 <input
@@ -1367,16 +1326,18 @@ export default function AdminBannersPage() {
                   style={{
                     width: "100%",
                     padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
                     fontSize: "12px"
                   }}
                 />
               </div>
             </div>
 
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                 Offer Title
               </label>
               <input
@@ -1391,15 +1352,17 @@ export default function AdminBannersPage() {
                 style={{
                   width: "100%",
                   padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--admin-slate-300)",
+                  borderRadius: "8px",
+                  border: "1px solid var(--admin-border-subtle)",
+                  background: "var(--admin-surface-bg)",
+                  color: "var(--admin-text-main)",
                   fontSize: "13px"
                 }}
               />
             </div>
 
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                 Offer Description
               </label>
               <textarea
@@ -1414,16 +1377,18 @@ export default function AdminBannersPage() {
                 style={{
                   width: "100%",
                   padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--admin-slate-300)",
+                  borderRadius: "8px",
+                  border: "1px solid var(--admin-border-subtle)",
+                  background: "var(--admin-surface-bg)",
+                  color: "var(--admin-text-main)",
                   fontSize: "12px"
                 }}
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                   CTA Button Label
                 </label>
                 <input
@@ -1438,15 +1403,17 @@ export default function AdminBannersPage() {
                   style={{
                     width: "100%",
                     padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
                     fontSize: "12px"
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                   CTA Link
                 </label>
                 <input
@@ -1461,16 +1428,18 @@ export default function AdminBannersPage() {
                   style={{
                     width: "100%",
                     padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--admin-slate-300)",
+                    borderRadius: "8px",
+                    border: "1px solid var(--admin-border-subtle)",
+                    background: "var(--admin-surface-bg)",
+                    color: "var(--admin-text-main)",
                     fontSize: "12px"
                   }}
                 />
               </div>
             </div>
 
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--admin-ink)", marginBottom: "6px" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "var(--admin-text-muted)", marginBottom: "6px" }}>
                 Promo Image URL
               </label>
               <input
@@ -1485,8 +1454,10 @@ export default function AdminBannersPage() {
                 style={{
                   width: "100%",
                   padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--admin-slate-300)",
+                  borderRadius: "8px",
+                  border: "1px solid var(--admin-border-subtle)",
+                  background: "var(--admin-surface-bg)",
+                  color: "var(--admin-text-main)",
                   fontSize: "12px"
                 }}
               />
@@ -1494,27 +1465,20 @@ export default function AdminBannersPage() {
           </div>
 
           {/* Promo Preview */}
-          <div
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid var(--admin-slate-200)",
-              borderRadius: "10px",
-              padding: "20px"
-            }}
-          >
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--admin-slate-600)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "12px" }}>
+          <div className="admin-luxury-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--admin-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Offer Card Live Preview
             </span>
             <div
               style={{
                 position: "relative",
-                height: "240px",
-                borderRadius: "10px",
+                height: "220px",
+                borderRadius: "12px",
                 overflow: "hidden",
-                border: "1px solid var(--admin-slate-200)",
+                border: "1px solid var(--admin-border-subtle)",
                 display: "flex",
                 alignItems: "flex-end",
-                padding: "20px"
+                padding: "16px"
               }}
             >
               <Image
@@ -1527,29 +1491,29 @@ export default function AdminBannersPage() {
                 style={{
                   position: "absolute",
                   inset: 0,
-                  background: "linear-gradient(to top, rgba(21, 29, 48, 0.9) 0%, rgba(21, 29, 48, 0.4) 60%, transparent 100%)"
+                  background: "linear-gradient(to top, rgba(18, 12, 14, 0.9) 0%, rgba(18, 12, 14, 0.3) 60%, transparent 100%)"
                 }}
               />
               <div style={{ position: "relative", zIndex: 2, color: "#FFFFFF" }}>
                 <span
                   style={{
-                    background: "#B87078",
+                    background: "var(--admin-primary)",
                     padding: "3px 8px",
                     borderRadius: "4px",
-                    fontSize: "10px",
+                    fontSize: "9px",
                     fontWeight: 700,
                     letterSpacing: "0.08em"
                   }}
                 >
                   {config.promotionalOfferBanner.badge}
                 </span>
-                <h4 style={{ fontSize: "16px", margin: "8px 0 4px", color: "#FFFFFF" }}>
+                <h4 style={{ fontSize: "15px", margin: "6px 0 2px", color: "#FFFFFF", fontFamily: "var(--font-display)" }}>
                   {config.promotionalOfferBanner.title}
                 </h4>
-                <p style={{ fontSize: "11px", color: "#CBD5E1", margin: "0 0 10px" }}>
+                <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.85)", margin: "0 0 8px", lineHeight: 1.3 }}>
                   {config.promotionalOfferBanner.description}
                 </p>
-                <div style={{ display: "inline-block", background: "var(--nilasa-gold)", color: "var(--nilasa-indigo)", padding: "6px 14px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>
+                <div style={{ display: "inline-block", background: "#C69244", color: "#2C1E20", padding: "5px 12px", borderRadius: "4px", fontSize: "10.5px", fontWeight: 700 }}>
                   {config.promotionalOfferBanner.ctaLabel} (Code: {config.promotionalOfferBanner.code})
                 </div>
               </div>

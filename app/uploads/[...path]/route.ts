@@ -15,10 +15,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
   const targetUrl = `${BACKEND_BASE}/uploads/${pathStr}`;
 
   try {
-    if (process.env.NODE_ENV !== "production") {
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-    }
-
     const res = await fetch(targetUrl, {
       // @ts-expect-error Node https agent for self-signed certs
       agent: targetUrl.startsWith("https://") ? httpsAgent : undefined,
