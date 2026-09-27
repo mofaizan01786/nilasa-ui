@@ -260,9 +260,9 @@ export function ProductCard({ product, activeColor, activeSize }: ProductCardPro
                 {formatPrice(originalPrice)}
               </span>
             )}
-            {product.discountPercent && product.discountPercent > 0 && (
+            {Boolean(product.discountPercent && product.discountPercent > 0) && (
               <span style={{ fontSize: "11px", fontWeight: 700, color: "#15803D" }}>
-                {Math.round(product.discountPercent)}% OFF
+                {Math.round(product.discountPercent!)}% OFF
               </span>
             )}
           </div>
@@ -294,12 +294,12 @@ export function ProductCard({ product, activeColor, activeSize }: ProductCardPro
             >
               {added ? (
                 <>
-                  <Check size={14} />
+                  <Check size={13} strokeWidth={2.5} />
                   <span>Added</span>
                 </>
               ) : (
                 <>
-                  <ShoppingBag size={14} />
+                  <ShoppingBag size={13} strokeWidth={2} />
                   <span>Add</span>
                 </>
               )}
