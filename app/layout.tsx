@@ -54,10 +54,16 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const googleClientId = (
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+    process.env.GOOGLE_CLIENT_ID ||
+    ""
+  ).trim();
+
   return (
     <html lang="en" className={`${playfairDisplay.variable} ${openSans.variable} ${jetbrainsMono.variable}`}>
       <body>
-        <GoogleOAuthWrapper>
+        <GoogleOAuthWrapper clientId={googleClientId}>
           <WishlistProvider>
             <CartProvider>
               <LayoutWrapper>{children}</LayoutWrapper>

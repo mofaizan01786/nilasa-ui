@@ -8,6 +8,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { fetchAuthMethods } from "@/lib/dotnet-backend";
 import { AuthMethodsResponse } from "@/lib/types";
 import { GoogleLogin } from "@react-oauth/google";
+import { useGoogleAuth } from "@/components/GoogleOAuthWrapper";
 import axios from "axios";
 import {
   AlertCircle,
@@ -28,6 +29,7 @@ function LoginForm() {
   const redirectUrl = searchParams.get("redirect") || "/account";
 
   const { login, loginWithGoogle, sendOtp, loginWithOtp, isAuthenticated } = useAuth();
+  const { isAvailable: isGoogleClientConfigured } = useGoogleAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
   // Auth Methods Config from Backend (GET /api/v1/auth/methods)
@@ -893,70 +895,72 @@ function LoginForm() {
         )}
 
         {/* ─── SOCIAL SIGN-IN / GOOGLE OAUTH ─── */}
-        <div style={{ marginTop: 22 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-            <div style={{ flex: 1, height: 1, backgroundColor: "rgba(198, 146, 68, 0.2)" }} />
-            <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-muted)", fontWeight: 600 }}>
-              Or Continue With
-            </span>
-            <div style={{ flex: 1, height: 1, backgroundColor: "rgba(198, 146, 68, 0.2)" }} />
-          </div>
+        {isGoogleClientConfigured && (
+          <div style={{ marginTop: 22 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <div style={{ flex: 1, height: 1, backgroundColor: "rgba(198, 146, 68, 0.2)" }} />
+              <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-muted)", fontWeight: 600 }}>
+                Or Continue With
+              </span>
+              <div style={{ flex: 1, height: 1, backgroundColor: "rgba(198, 146, 68, 0.2)" }} />
+            </div>
 
-          <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
-            <GoogleLogin
-              onSuccess={async (credentialResponse) => {
-                try {
-                  if (!credentialResponse.credential) {
-                    setError("No credential token received from Google.");
-                    return;
+            <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+              <GoogleLogin
+                onSuccess={async (credentialResponse) => {
+                  try {
+                    if (!credentialResponse.credential) {
+                      setError("No credential token received from Google.");
+                      return;
+                    }
+
+                    setGoogleLoading(true);
+                    setError("");
+
+                    const apiBase =
+                      process.env.NEXT_PUBLIC_API_URL || "https://nilasabackend.geecera.com/api/v1";
+                    const response = await axios.post(`${apiBase}/auth/google`, {
+                      credential: credentialResponse.credential
+                    });
+
+                    // Backend returns standard JWT session:
+                    const { accessToken, refreshToken, userId, name, email, role } = response.data;
+                    localStorage.setItem("accessToken", accessToken);
+                    localStorage.setItem("refreshToken", refreshToken);
+
+                    // Also sync storefront auth session and cookie
+                    localStorage.setItem("nilasa-auth-token", accessToken);
+                    localStorage.setItem(
+                      "nilasa-user",
+                      JSON.stringify({ userId, name, email, role, isActive: true, id: userId })
+                    );
+                    document.cookie = `nilasa_session=${accessToken}; path=/; max-age=604800; samesite=lax`;
+
+                    // Redirect to destination / home
+                    window.location.href = redirectUrl || "/";
+                  } catch (err: any) {
+                    console.error("Google login error:", err.response?.data);
+                    const errMsg =
+                      err.response?.data?.error || err.response?.data?.message || "Google login failed";
+                    setError(errMsg);
+                    alert(errMsg);
+                  } finally {
+                    setGoogleLoading(false);
                   }
-
-                  setGoogleLoading(true);
-                  setError("");
-
-                  const apiBase =
-                    process.env.NEXT_PUBLIC_API_URL || "https://nilasabackend.geecera.com/api/v1";
-                  const response = await axios.post(`${apiBase}/auth/google`, {
-                    credential: credentialResponse.credential
-                  });
-
-                  // Backend returns standard JWT session:
-                  const { accessToken, refreshToken, userId, name, email, role } = response.data;
-                  localStorage.setItem("accessToken", accessToken);
-                  localStorage.setItem("refreshToken", refreshToken);
-
-                  // Also sync storefront auth session and cookie
-                  localStorage.setItem("nilasa-auth-token", accessToken);
-                  localStorage.setItem(
-                    "nilasa-user",
-                    JSON.stringify({ userId, name, email, role, isActive: true, id: userId })
-                  );
-                  document.cookie = `nilasa_session=${accessToken}; path=/; max-age=604800; samesite=lax`;
-
-                  // Redirect to destination / home
-                  window.location.href = redirectUrl || "/";
-                } catch (err: any) {
-                  console.error("Google login error:", err.response?.data);
-                  const errMsg =
-                    err.response?.data?.error || err.response?.data?.message || "Google login failed";
-                  setError(errMsg);
-                  alert(errMsg);
-                } finally {
-                  setGoogleLoading(false);
-                }
-              }}
-              onError={() => {
-                console.log("Login Failed");
-                setError("Google sign-in was cancelled or failed.");
-              }}
-              theme="outline"
-              size="large"
-              shape="rectangular"
-              width="100%"
-              text="signin_with"
-            />
+                }}
+                onError={() => {
+                  console.log("Login Failed");
+                  setError("Google sign-in was cancelled or failed.");
+                }}
+                theme="outline"
+                size="large"
+                shape="rectangular"
+                width="100%"
+                text="signin_with"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ─── BOTTOM SIGNUP LINK ─── */}
         <div
