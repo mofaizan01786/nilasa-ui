@@ -9,7 +9,6 @@ import { fetchAuthMethods } from "@/lib/dotnet-backend";
 import { AuthMethodsResponse } from "@/lib/types";
 import { GoogleLogin } from "@react-oauth/google";
 import { useGoogleAuth } from "@/components/GoogleOAuthWrapper";
-import axios from "axios";
 import {
   AlertCircle,
   Lock,
@@ -917,39 +916,22 @@ function LoginForm() {
                     setGoogleLoading(true);
                     setError("");
 
-                    const apiBase =
-                      process.env.NEXT_PUBLIC_API_URL || "https://nilasabackend.geecera.com/api/v1";
-                    const response = await axios.post(`${apiBase}/auth/google`, {
+                    const result = await loginWithGoogle({
                       credential: credentialResponse.credential
                     });
 
-                    // Backend returns standard JWT session:
-                    const { accessToken, refreshToken, userId, name, email, role } = response.data;
-                    localStorage.setItem("accessToken", accessToken);
-                    localStorage.setItem("refreshToken", refreshToken);
-
-                    // Also sync storefront auth session and cookie
-                    localStorage.setItem("nilasa-auth-token", accessToken);
-                    localStorage.setItem(
-                      "nilasa-user",
-                      JSON.stringify({ userId, name, email, role, isActive: true, id: userId })
-                    );
-                    document.cookie = `nilasa_session=${accessToken}; path=/; max-age=604800; samesite=lax`;
-
-                    // Redirect to destination / home
-                    window.location.href = redirectUrl || "/";
+                    if (result.success) {
+                      router.push(redirectUrl);
+                    } else {
+                      setError(result.error || "Google sign-in failed. Please try again.");
+                      setGoogleLoading(false);
+                    }
                   } catch (err: any) {
-                    console.error("Google login error:", err.response?.data);
-                    const errMsg =
-                      err.response?.data?.error || err.response?.data?.message || "Google login failed";
-                    setError(errMsg);
-                    alert(errMsg);
-                  } finally {
+                    setError(err.message || "An unexpected error occurred during Google sign-in.");
                     setGoogleLoading(false);
                   }
                 }}
                 onError={() => {
-                  console.log("Login Failed");
                   setError("Google sign-in was cancelled or failed.");
                 }}
                 theme="outline"
