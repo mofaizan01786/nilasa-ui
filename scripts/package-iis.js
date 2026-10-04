@@ -76,9 +76,19 @@ const webConfigXml = `<?xml version="1.0" encoding="utf-8"?>
       namedPipeConnectionRetryDelay="250"
       devErrorsEnabled="true"
       loggingEnabled="true"
-      logDirectory="iisnode"
+      logDirectory="logs"
       watchedFiles="web.config;*.js"
     />
+
+    <security>
+      <requestFiltering>
+        <hiddenSegments>
+          <add segment="node_modules" />
+          <add segment="iisnode" />
+          <add segment="logs" />
+        </hiddenSegments>
+      </requestFiltering>
+    </security>
 
     <rewrite>
       <rules>
@@ -149,6 +159,13 @@ if (fs.existsSync(path.join(rootDir, 'web.config'))) {
 if (fs.existsSync(path.join(rootDir, '.env'))) {
   fs.copyFileSync(path.join(rootDir, '.env'), path.join(distDir, '.env'));
 }
+
+// Ensure dedicated logs/ directory exists so iisnode writes inside logs/
+const logsDir = path.join(distDir, 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+fs.writeFileSync(path.join(logsDir, '.gitkeep'), '');
 
 console.log('3. Writing SmarterASP.NET iisnode-compatible server.js...');
 
