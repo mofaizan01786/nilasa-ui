@@ -183,15 +183,42 @@ const nextApp = new NextServer({
 
 const handler = nextApp.getRequestHandler();
 
+function normalizeUrl(req) {
+  let url = '/';
+
+  if (req.headers && req.headers['x-original-url']) {
+    url = req.headers['x-original-url'];
+  } else if (req.headers && req.headers['x-rewrite-url']) {
+    url = req.headers['x-rewrite-url'];
+  } else if (req.url && !req.url.startsWith('/server.js')) {
+    url = req.url;
+  } else if (req.url && req.url.startsWith('/server.js/')) {
+    url = req.url.substring('/server.js'.length);
+  }
+
+  if (!url || url === '') {
+    url = '/';
+  }
+
+  // Strip /nilasa sub-folder prefix if IIS application is deployed under /nilasa
+  if (url === '/nilasa') {
+    url = '/';
+  } else if (url.startsWith('/nilasa/')) {
+    url = url.substring('/nilasa'.length);
+  } else if (url.startsWith('/nilasa?')) {
+    url = '/' + url.substring('/nilasa'.length);
+  }
+
+  if (!url.startsWith('/')) {
+    url = '/' + url;
+  }
+
+  return url;
+}
+
 const server = http.createServer(async (req, res) => {
   try {
-    // Restore original URL forwarded by IIS / iisnode
-    if (req.headers && req.headers['x-original-url']) {
-      req.url = req.headers['x-original-url'];
-    } else if (req.url && req.url.startsWith('/server.js')) {
-      req.url = req.url.replace(/^\\/server\\.js/, '') || '/';
-    }
-
+    req.url = normalizeUrl(req);
     await handler(req, res);
   } catch (err) {
     console.error('Request handler error:', err);
@@ -220,7 +247,7 @@ if (!skipZip) {
 
   try {
     if (process.platform === 'win32') {
-      execSync(`tar -a -c -f "${zipFile}" -C "${distDir}" *`, { stdio: 'inherit' });
+      execSync(`tar -a -c -f "${zipFile}" -C "${distDir}" .`, { stdio: 'inherit' });
     } else {
       execSync(`tar -czf "${zipFile}" -C "${distDir}" .`, { stdio: 'inherit' });
     }
